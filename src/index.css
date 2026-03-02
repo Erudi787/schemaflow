@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+/* ===== Design System ===== */
+
+@theme {
+  /* Color Palette */
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #12121a;
+  --color-bg-tertiary: #1a1a2e;
+  --color-bg-elevated: #222240;
+  --color-bg-hover: #2a2a4a;
+
+  --color-surface: #16162a;
+  --color-surface-hover: #1e1e38;
+  --color-surface-active: #262650;
+
+  --color-border: #2a2a4a;
+  --color-border-bright: #3a3a6a;
+
+  --color-text-primary: #e8e8f0;
+  --color-text-secondary: #a0a0c0;
+  --color-text-muted: #6a6a8a;
+
+  --color-accent: #6c63ff;
+  --color-accent-hover: #7c73ff;
+  --color-accent-glow: rgba(108, 99, 255, 0.3);
+
+  --color-accent-secondary: #00d4aa;
+  --color-accent-secondary-hover: #00e8bb;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* Node colors for the graph */
+  --color-node-sql-header: #6c63ff;
+  --color-node-sql-bg: #1a1a3e;
+  --color-node-json-header: #00d4aa;
+  --color-node-json-bg: #1a2e2a;
+
+  --color-pk-badge: #f59e0b;
+  --color-fk-badge: #3b82f6;
+  --color-nullable-badge: #6a6a8a;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --spacing-panel-gap: 1rem;
+
+  /* Borders */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(108, 99, 255, 0.2);
+}
+
+/* ===== Light Theme ===== */
+@theme {
+  --color-light-bg-primary: #f8f8fc;
+  --color-light-bg-secondary: #f0f0f8;
+  --color-light-bg-tertiary: #e8e8f0;
+  --color-light-bg-elevated: #ffffff;
+
+  --color-light-surface: #ffffff;
+  --color-light-surface-hover: #f5f5fa;
+
+  --color-light-border: #d8d8e8;
+  --color-light-border-bright: #c0c0d8;
+
+  --color-light-text-primary: #1a1a2e;
+  --color-light-text-secondary: #4a4a6a;
+  --color-light-text-muted: #8a8aa0;
+}
+
+/* ===== Base Styles ===== */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-bright);
+  }
+}
+
+/* ===== Utility Classes ===== */
+@layer utilities {
+  .glass {
+    background: rgba(22, 22, 42, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--color-light-border);
+  }
+
+  .glow-accent {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ===== React Flow Overrides ===== */
+.react-flow__background {
+  background-color: var(--color-bg-primary) !important;
+}
+
+.react-flow__minimap {
+  background-color: var(--color-bg-secondary) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.react-flow__controls {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: var(--color-bg-secondary) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  fill: var(--color-text-secondary) !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--color-bg-hover) !important;
+}
+
+/* ===== CodeMirror Overrides ===== */
+.cm-editor {
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background-color: transparent !important;
+}
+
+.cm-editor .cm-gutters {
+  background-color: var(--color-bg-secondary) !important;
+  border-right: 1px solid var(--color-border) !important;
+  color: var(--color-text-muted) !important;
+}
+
+.cm-editor .cm-activeLineGutter {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+.cm-editor .cm-activeLine {
+  background-color: rgba(108, 99, 255, 0.05) !important;
+}
+
+.cm-editor .cm-selectionBackground {
+  background-color: rgba(108, 99, 255, 0.2) !important;
+}
+
+.cm-editor .cm-cursor {
+  border-left-color: var(--color-accent) !important;
+}
+
+/* ===== Animation Keyframes ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(108, 99, 255, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(108, 99, 255, 0.4); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
