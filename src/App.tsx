@@ -1,54 +1,84 @@
+import { useSchemaStore } from '@/store/useSchemaStore';
+import { InputPanel, SQL_SAMPLE, JSON_SAMPLE } from '@/components/input/InputPanel';
+import { SchemaCanvas } from '@/components/canvas/SchemaCanvas';
+import { Toolbar } from '@/components/toolbar/Toolbar';
+import { ToastContainer } from '@/components/ui/Toast';
+import { AlertCircle, X } from 'lucide-react';
+import { useCallback } from 'react';
+
 function App() {
+  const {
+    rawInput,
+    inputMode,
+    flowData,
+    error,
+    setRawInput,
+    setInputMode,
+    visualize,
+  } = useSchemaStore();
+
+  const handleLoadSample = useCallback(
+    (sample: 'sql' | 'json') => {
+      const content = sample === 'sql' ? SQL_SAMPLE : JSON_SAMPLE;
+      setInputMode(sample);
+      setRawInput(content);
+    },
+    [setInputMode, setRawInput]
+  );
+
   return (
-    <div className="flex h-screen w-screen bg-bg-primary text-text-primary">
-      {/* Sidebar — saved diagrams */}
-      <aside className="w-64 shrink-0 border-r border-border bg-bg-secondary flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h1 className="text-lg font-bold text-gradient">SchemaFlow</h1>
-          <p className="text-xs text-text-muted mt-1">Interactive Schema Visualizer</p>
-        </div>
-        <div className="flex-1 p-4 text-text-muted text-sm">
-          {/* DiagramSidebar will mount here */}
-          <p className="opacity-50">No saved diagrams yet</p>
-        </div>
-      </aside>
+    <>
+      <div className="flex h-screen w-screen bg-bg-primary text-text-primary">
+        {/* Sidebar — saved diagrams (placeholder for now) */}
+        <aside className="w-56 shrink-0 border-r border-border bg-bg-secondary flex flex-col">
+          <div className="p-4 border-b border-border">
+            <h1 className="text-lg font-bold text-gradient">SchemaFlow</h1>
+            <p className="text-[10px] text-text-muted mt-1">Interactive Schema Visualizer</p>
+          </div>
+          <div className="flex-1 p-3 text-text-muted text-xs">
+            <p className="opacity-50">Saved diagrams will appear here</p>
+          </div>
+        </aside>
 
-      {/* Main area — input panel + canvas */}
-      <main className="flex-1 flex flex-col">
-        {/* Toolbar */}
-        <header className="h-12 border-b border-border bg-bg-secondary flex items-center px-4 gap-3">
-          <span className="text-sm text-text-secondary">Toolbar placeholder</span>
-        </header>
+        {/* Main area */}
+        <main className="flex-1 flex flex-col">
+          {/* Toolbar */}
+          <Toolbar />
 
-        {/* Split: Input | Canvas */}
-        <div className="flex-1 flex">
-          {/* Input panel */}
-          <section className="w-[420px] shrink-0 border-r border-border bg-bg-secondary flex flex-col">
-            <div className="p-3 border-b border-border flex items-center gap-2">
-              <span className="text-sm font-medium text-text-primary">Input</span>
+          {/* Error bar */}
+          {error && (
+            <div className="px-4 py-2 bg-error/10 border-b border-error/30 flex items-center gap-2 text-sm text-error">
+              <AlertCircle size={14} />
+              <span className="flex-1">{error}</span>
+              <button
+                onClick={() => useSchemaStore.setState({ error: null })}
+                className="p-1 hover:bg-error/20 rounded transition-colors"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <div className="flex-1 p-4 text-text-muted text-sm font-mono">
-              {/* InputPanel will mount here */}
-              <p className="opacity-50">Paste your SQL or JSON here...</p>
-            </div>
-          </section>
+          )}
 
-          {/* Canvas */}
-          <section className="flex-1 bg-bg-primary relative">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-bg-tertiary border border-border flex items-center justify-center">
-                  <span className="text-2xl">⬡</span>
-                </div>
-                <p className="text-text-secondary text-sm">Paste a schema and click Visualize</p>
-                <p className="text-text-muted text-xs mt-1">SQL CREATE TABLE or JSON API responses</p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-    </div>
-  )
+          {/* Content: Input Panel + Canvas */}
+          <div className="flex-1 flex">
+            <InputPanel
+              value={rawInput}
+              mode={inputMode}
+              onValueChange={setRawInput}
+              onModeChange={setInputMode}
+              onVisualize={visualize}
+              onLoadSample={handleLoadSample}
+            />
+
+            <SchemaCanvas flowData={flowData} />
+          </div>
+        </main>
+      </div>
+
+      <ToastContainer />
+    </>
+  );
 }
 
-export default App
+export default App;
+
