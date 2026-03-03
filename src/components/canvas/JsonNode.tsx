@@ -22,9 +22,14 @@ function JsonNodeComponent({ data }: NodeProps) {
 
     return (
         <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px] relative">
-            {/* Node-level handles for edge connections */}
-            <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-accent-secondary !border-accent-secondary-hover !opacity-0" />
-            <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-accent-secondary !border-accent-secondary-hover !opacity-0" />
+            {/* 'self' target handle on node header for parent→child edges */}
+            <Handle
+                type="target"
+                position={Position.Left}
+                id="self"
+                className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
+                style={{ top: '20px' }}
+            />
             {/* Header */}
             <div
                 className="flex items-center gap-2 px-3 py-2.5 bg-node-json-header cursor-pointer select-none"
@@ -55,6 +60,21 @@ function JsonNodeComponent({ data }: NodeProps) {
                                 key={field.name}
                                 className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors relative"
                             >
+                                {/* Per-field handles for edge connections */}
+                                <Handle
+                                    type="source"
+                                    position={Position.Right}
+                                    id={field.name}
+                                    className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
+                                    style={{ top: '50%' }}
+                                />
+                                <Handle
+                                    type="target"
+                                    position={Position.Left}
+                                    id={field.name}
+                                    className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
+                                    style={{ top: '50%' }}
+                                />
 
                                 {/* Type icon */}
                                 <IconComponent

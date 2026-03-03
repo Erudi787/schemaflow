@@ -41,6 +41,8 @@ export function toReactFlow(model: SchemaModel): FlowData {
                 id: edgeId,
                 source: 'table-' + rel.from.table,
                 target: 'table-' + rel.to.table,
+                sourceHandle: rel.from.field,
+                targetHandle: rel.to.field,
                 type: 'custom',
                 animated: rel.type === 'one-to-many',
                 data: {
