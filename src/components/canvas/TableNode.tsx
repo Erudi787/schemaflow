@@ -11,7 +11,10 @@ function TableNodeComponent({ data }: NodeProps) {
     const hasMore = fields.length > 3;
 
     return (
-        <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px]">
+        <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px] relative">
+            {/* Node-level handles for edge connections */}
+            <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-accent !border-accent-hover !opacity-0" />
+            <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-accent !border-accent-hover !opacity-0" />
             {/* Header */}
             <div
                 className="flex items-center gap-2 px-3 py-2.5 bg-node-sql-header cursor-pointer select-none"
@@ -38,21 +41,6 @@ function TableNodeComponent({ data }: NodeProps) {
                         key={field.name}
                         className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors relative"
                     >
-                        {/* Source handle for this field */}
-                        <Handle
-                            type="source"
-                            position={Position.Right}
-                            id={field.name}
-                            className="!w-2 !h-2 !bg-accent !border-accent-hover"
-                            style={{ top: 'auto' }}
-                        />
-                        <Handle
-                            type="target"
-                            position={Position.Left}
-                            id={field.name}
-                            className="!w-2 !h-2 !bg-accent !border-accent-hover"
-                            style={{ top: 'auto' }}
-                        />
 
                         {/* Badges */}
                         <span className="flex items-center gap-1 shrink-0">

@@ -202,7 +202,9 @@ function parseColumnDef(
     let references: SchemaField['references'];
 
     if (isForeignKey) {
-        const refMatch = constraints.match(
+        // Match against the original-casing constraint string to preserve table/field names
+        const originalConstraints = colMatch[3];
+        const refMatch = originalConstraints.match(
             /REFERENCES\s+[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
         );
         if (refMatch) {

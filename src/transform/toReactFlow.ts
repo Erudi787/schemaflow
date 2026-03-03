@@ -41,14 +41,13 @@ export function toReactFlow(model: SchemaModel): FlowData {
                 id: edgeId,
                 source: 'table-' + rel.from.table,
                 target: 'table-' + rel.to.table,
-                sourceHandle: rel.from.field,
-                targetHandle: rel.to.field,
                 type: 'custom',
-                label: rel.type,
                 animated: rel.type === 'one-to-many',
                 data: {
                     relationshipType: rel.type,
+                    fromTable: rel.from.table,
                     fromField: rel.from.field,
+                    toTable: rel.to.table,
                     toField: rel.to.field,
                 },
             });
