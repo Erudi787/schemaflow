@@ -2,7 +2,10 @@ import { useSchemaStore } from '@/store/useSchemaStore';
 import { InputPanel, SQL_SAMPLE, JSON_SAMPLE } from '@/components/input/InputPanel';
 import { SchemaCanvas } from '@/components/canvas/SchemaCanvas';
 import { Toolbar } from '@/components/toolbar/Toolbar';
+import { DiagramSidebar } from '@/components/sidebar/DiagramSidebar';
 import { ToastContainer } from '@/components/ui/Toast';
+import { useTheme } from '@/hooks/useTheme';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AlertCircle, X } from 'lucide-react';
 import { useCallback } from 'react';
 
@@ -17,6 +20,9 @@ function App() {
     visualize,
   } = useSchemaStore();
 
+  const { theme, toggleTheme } = useTheme();
+  useKeyboardShortcuts();
+
   const handleLoadSample = useCallback(
     (sample: 'sql' | 'json') => {
       const content = sample === 'sql' ? SQL_SAMPLE : JSON_SAMPLE;
@@ -29,21 +35,13 @@ function App() {
   return (
     <>
       <div className="flex h-screen w-screen bg-bg-primary text-text-primary">
-        {/* Sidebar — saved diagrams (placeholder for now) */}
-        <aside className="w-56 shrink-0 border-r border-border bg-bg-secondary flex flex-col">
-          <div className="p-4 border-b border-border">
-            <h1 className="text-lg font-bold text-gradient">SchemaFlow</h1>
-            <p className="text-[10px] text-text-muted mt-1">Interactive Schema Visualizer</p>
-          </div>
-          <div className="flex-1 p-3 text-text-muted text-xs">
-            <p className="opacity-50">Saved diagrams will appear here</p>
-          </div>
-        </aside>
+        {/* Sidebar — saved diagrams */}
+        <DiagramSidebar />
 
         {/* Main area */}
         <main className="flex-1 flex flex-col">
           {/* Toolbar */}
-          <Toolbar />
+          <Toolbar theme={theme} onToggleTheme={toggleTheme} />
 
           {/* Error bar */}
           {error && (

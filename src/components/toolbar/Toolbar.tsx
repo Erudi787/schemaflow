@@ -1,67 +1,64 @@
 import { useSchemaStore } from '@/store/useSchemaStore';
-import { Download, Moon, Sun, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { exportToMermaid, exportToMarkdown, exportToTypeScript } from '@/features/export';
+import { generateMockApi } from '@/features/mockApi';
+import { showToast } from '@/components/ui/Toast';
+import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
-export function Toolbar() {
+interface ToolbarProps {
+    theme: 'dark' | 'light';
+    onToggleTheme: () => void;
+}
+
+export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
     const { schemaModel, flowData, clear } = useSchemaStore();
-    const [isDark, setIsDark] = useState(true);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setShowExportMenu(false);
+            }
+        };
+        if (showExportMenu) {
+            document.addEventListener('mousedown', handler);
+            return () => document.removeEventListener('mousedown', handler);
+        }
+    }, [showExportMenu]);
+
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        showToast('success', label + ' copied to clipboard');
+        setShowExportMenu(false);
+    };
 
     const handleExportMermaid = () => {
         if (!schemaModel) return;
-
-        let mermaid = 'erDiagram\n';
-
-        for (const table of schemaModel.tables) {
-            mermaid += '    ' + table.name + ' {\n';
-            for (const field of table.fields) {
-                const pk = field.isPrimaryKey ? ' PK' : '';
-                const fk = field.isForeignKey ? ' FK' : '';
-                mermaid += '        ' + field.type + ' ' + field.name + pk + fk + '\n';
-            }
-            mermaid += '    }\n';
-        }
-
-        for (const rel of schemaModel.relationships) {
-            const relSymbol = rel.type === 'one-to-many' ? '||--o{' : '||--||';
-            mermaid += '    ' + rel.from.table + ' ' + relSymbol + ' ' + rel.to.table + ' : "' + rel.from.field + '"\n';
-        }
-
-        navigator.clipboard.writeText(mermaid);
-        alert('Mermaid ERD copied to clipboard!');
+        copyToClipboard(exportToMermaid(schemaModel), 'Mermaid ERD');
     };
 
     const handleExportMarkdown = () => {
         if (!schemaModel) return;
-
-        let md = '# Schema Documentation\n\n';
-
-        for (const table of schemaModel.tables) {
-            md += '## ' + table.name + '\n\n';
-            md += '| Field | Type | PK | FK | Nullable |\n';
-            md += '|-------|------|----|----|----------|\n';
-            for (const field of table.fields) {
-                md += '| ' + field.name + ' | ' + field.type + ' | ' +
-                    (field.isPrimaryKey ? 'Yes' : '') + ' | ' +
-                    (field.isForeignKey ? 'Yes' : '') + ' | ' +
-                    (field.isNullable ? 'Yes' : 'No') + ' |\n';
-            }
-            md += '\n';
-        }
-
-        navigator.clipboard.writeText(md);
-        alert('Markdown documentation copied to clipboard!');
+        copyToClipboard(exportToMarkdown(schemaModel), 'Markdown docs');
     };
 
-    const handleThemeToggle = () => {
-        setIsDark(!isDark);
-        // Theme toggle will be fully implemented in Phase 7 (polish)
+    const handleExportTypeScript = () => {
+        if (!schemaModel) return;
+        copyToClipboard(exportToTypeScript(schemaModel), 'TypeScript interfaces');
+    };
+
+    const handleMockApi = () => {
+        if (!schemaModel) return;
+        copyToClipboard(generateMockApi(schemaModel), 'Mock API spec');
     };
 
     const hasData = !!flowData;
 
     return (
         <header className="h-11 border-b border-border bg-bg-secondary flex items-center px-4 gap-2">
-            {/* Left: app context */}
+            {/* Left: schema summary */}
             <span className="text-xs text-text-muted">
                 {schemaModel
                     ? schemaModel.tables.length + ' table' + (schemaModel.tables.length !== 1 ? 's' : '') +
@@ -69,38 +66,70 @@ export function Toolbar() {
                     : 'No schema loaded'}
             </span>
 
+            {/* Keyboard shortcut hints */}
+            <span className="text-[10px] text-text-muted/50 ml-2 hidden sm:inline">
+                Ctrl+Enter to visualize · Ctrl+S to save
+            </span>
+
             <div className="flex-1" />
 
             {/* Right: actions */}
             <div className="flex items-center gap-1">
-                <button
-                    onClick={handleExportMermaid}
-                    disabled={!hasData}
-                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    title="Export as Mermaid ERD"
-                >
-                    <Download size={13} />
-                    Mermaid
-                </button>
+                {/* Export dropdown */}
+                <div className="relative" ref={menuRef}>
+                    <button
+                        onClick={() => setShowExportMenu(!showExportMenu)}
+                        disabled={!hasData}
+                        className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                        title="Export schema"
+                    >
+                        <Download size={13} />
+                        Export
+                    </button>
 
-                <button
-                    onClick={handleExportMarkdown}
-                    disabled={!hasData}
-                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                    title="Export as Markdown documentation"
-                >
-                    <Download size={13} />
-                    Markdown
-                </button>
+                    {showExportMenu && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-bg-elevated border border-border rounded-lg shadow-lg py-1 z-50">
+                            <button
+                                onClick={handleExportMermaid}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <Copy size={12} />
+                                Mermaid ERD
+                            </button>
+                            <button
+                                onClick={handleExportMarkdown}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <FileText size={12} />
+                                Markdown Docs
+                            </button>
+                            <button
+                                onClick={handleExportTypeScript}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <Code size={12} />
+                                TypeScript Interfaces
+                            </button>
+                            <div className="border-t border-border my-1" />
+                            <button
+                                onClick={handleMockApi}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <Zap size={12} />
+                                Mock REST API
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 <div className="w-px h-5 bg-border mx-1" />
 
                 <button
-                    onClick={handleThemeToggle}
+                    onClick={onToggleTheme}
                     className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
-                    title="Toggle theme"
+                    title={'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode'}
                 >
-                    {isDark ? <Sun size={14} /> : <Moon size={14} />}
+                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
                 </button>
 
                 <button
