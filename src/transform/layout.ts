@@ -39,8 +39,18 @@ export function applyLayout(
 
     // Add nodes with their dimensions
     for (const node of flowData.nodes) {
-        const width = (node.style?.width as number) || 250;
-        const height = (node.style?.height as number) || 200;
+        let width = (node.style?.width as number) || 250;
+        let height = (node.style?.height as number) || 200;
+
+        if (node.type === 'table' && node.data && Array.isArray(node.data.fields)) {
+            const fieldsCount = node.data.fields.length;
+            const isCollapsed = Boolean(node.data.isCollapsed);
+            const visibleCount = isCollapsed ? Math.min(fieldsCount, 3) : fieldsCount;
+            const hasMore = fieldsCount > 3;
+            // Base header ~40px, each field ~28px, collapsed indicator ~26px
+            height = 40 + (visibleCount * 28) + (isCollapsed && hasMore ? 26 : 0);
+        }
+
         g.setNode(node.id, { width, height });
     }
 
@@ -55,8 +65,17 @@ export function applyLayout(
     // Map the computed positions back to the nodes
     const layoutedNodes: Node[] = flowData.nodes.map((node) => {
         const nodeWithPosition = g.node(node.id);
-        const width = (node.style?.width as number) || 250;
-        const height = (node.style?.height as number) || 200;
+
+        let width = (node.style?.width as number) || 250;
+        let height = (node.style?.height as number) || 200;
+
+        if (node.type === 'table' && node.data && Array.isArray(node.data.fields)) {
+            const fieldsCount = node.data.fields.length;
+            const isCollapsed = Boolean(node.data.isCollapsed);
+            const visibleCount = isCollapsed ? Math.min(fieldsCount, 3) : fieldsCount;
+            const hasMore = fieldsCount > 3;
+            height = 40 + (visibleCount * 28) + (isCollapsed && hasMore ? 26 : 0);
+        }
 
         return {
             ...node,
