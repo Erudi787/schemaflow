@@ -98,10 +98,42 @@ CREATE TABLE comments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
 
+// -- DDL Dump (ALTER TABLE) sample --
+const SQL_SAMPLE_ALTER = `-- Tables created without relationships
+CREATE TABLE departments (
+    id INT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE employees (
+    id INT,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    dept_id INT
+);
+
+-- Roles table
+CREATE TABLE roles (
+    id INT PRIMARY KEY,
+    title VARCHAR(100)
+);
+
+-- Primary Keys added later via ALTER TABLE
+ALTER TABLE employees ADD PRIMARY KEY (id);
+
+-- Foreign Keys added later via ALTER TABLE
+ALTER TABLE employees ADD CONSTRAINT fk_emp_dept FOREIGN KEY (dept_id) REFERENCES departments(id);
+
+-- Columns added later via ALTER TABLE
+ALTER TABLE employees ADD COLUMN role_id INT;
+ALTER TABLE employees ADD CONSTRAINT fk_emp_role FOREIGN KEY (role_id) REFERENCES roles(id);
+`;
+
 const SQL_SAMPLES = [
     { label: 'Generic', value: SQL_SAMPLE_GENERIC },
     { label: 'MySQL', value: SQL_SAMPLE_MYSQL },
     { label: 'PostgreSQL', value: SQL_SAMPLE_PG },
+    { label: 'DDL Dump', value: SQL_SAMPLE_ALTER },
 ];
 
 const JSON_SAMPLE = JSON.stringify({
@@ -262,7 +294,7 @@ export function InputPanel({
 
     return (
         <section
-            className="w-[420px] shrink-0 border-r border-border bg-bg-secondary flex flex-col relative"
+            className="w-[480px] shrink-0 border-r border-border bg-bg-secondary flex flex-col relative"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -270,7 +302,7 @@ export function InputPanel({
             {/* Header with mode toggle */}
             <div className="p-3 border-b border-border flex items-center gap-2">
                 {/* Mode toggle buttons */}
-                <div className="flex rounded-md border border-border overflow-hidden">
+                <div className="flex shrink-0 rounded-md border border-border overflow-hidden">
                     <button
                         onClick={() => onModeChange('sql')}
                         className={

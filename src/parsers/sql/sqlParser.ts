@@ -19,27 +19,27 @@ export function parseSql(input: string): ParseOutcome {
     try {
         const cleaned = stripComments(input);
         const statements = splitStatements(cleaned);
-        const createStatements = statements.filter((s) =>
-            /^\s*CREATE\s+TABLE/i.test(s)
-        );
+        const tables: SchemaTable[] = [];
+        const relationships: SchemaRelationship[] = [];
 
-        if (createStatements.length === 0) {
+        for (const stmt of statements) {
+            if (/^\s*CREATE\s+TABLE/i.test(stmt)) {
+                const result = parseCreateTable(stmt);
+                if (!result.success) {
+                    return result;
+                }
+                tables.push(result.table);
+                relationships.push(...result.relationships);
+            } else if (/^\s*ALTER\s+TABLE/i.test(stmt)) {
+                parseAlterTable(stmt, tables, relationships);
+            }
+        }
+
+        if (tables.length === 0) {
             return {
                 success: false,
                 error: 'No CREATE TABLE statements found. Please provide valid SQL DDL.',
             };
-        }
-
-        const tables: SchemaTable[] = [];
-        const relationships: SchemaRelationship[] = [];
-
-        for (const stmt of createStatements) {
-            const result = parseCreateTable(stmt);
-            if (!result.success) {
-                return result;
-            }
-            tables.push(result.table);
-            relationships.push(...result.relationships);
         }
 
         return {
@@ -198,6 +198,74 @@ function parseCreateTable(
         table: { name: tableName, fields },
         relationships,
     };
+}
+
+/**
+ * Mutates tables and relationships array based on ALTER TABLE statement.
+ */
+function parseAlterTable(
+    rawStmt: string,
+    tables: SchemaTable[],
+    relationships: SchemaRelationship[]
+): void {
+    // Match: ALTER TABLE [schema.]<name> <action>
+    const match = rawStmt.match(/ALTER\s+TABLE\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s+(.+)/i);
+    if (!match) return;
+
+    const tableName = match[1];
+    const actionStr = match[2].trim();
+
+    const table = tables.find((t) => t.name === tableName);
+    if (!table) return; // Table not found
+
+    // Support: ADD [CONSTRAINT <name>] FOREIGN KEY (<col>) REFERENCES <table>(<col>)
+    const fkMatch = actionStr.match(
+        /ADD\s+(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+    );
+    if (fkMatch) {
+        const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+        const refTable = fkMatch[2];
+        const refFields = fkMatch[3].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+
+        for (let i = 0; i < localFields.length; i++) {
+            const existingField = table.fields.find((f) => f.name === localFields[i]);
+            if (existingField) {
+                existingField.isForeignKey = true;
+                existingField.references = {
+                    table: refTable,
+                    field: refFields[i] || refFields[0],
+                };
+            }
+            relationships.push({
+                from: { table: tableName, field: localFields[i] },
+                to: { table: refTable, field: refFields[i] || refFields[0] },
+                type: 'one-to-many',
+            });
+        }
+        return;
+    }
+
+    // Support: ADD [CONSTRAINT <name>] PRIMARY KEY (<col>)
+    const pkMatch = actionStr.match(/ADD\s+(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)/i);
+    if (pkMatch) {
+        const keys = pkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+        for (const pkName of keys) {
+            const field = table.fields.find((f) => f.name === pkName);
+            if (field) {
+                field.isPrimaryKey = true;
+            }
+        }
+        return;
+    }
+
+    // Support: ADD [COLUMN] <col_def>
+    const colMatch = actionStr.match(/ADD\s+(?:COLUMN\s+)?(.+)/i);
+    if (colMatch) {
+        const field = parseColumnDef(colMatch[1].trim(), tableName, relationships);
+        if (field) {
+            table.fields.push(field);
+        }
+    }
 }
 
 /**
