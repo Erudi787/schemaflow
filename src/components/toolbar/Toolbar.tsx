@@ -2,15 +2,16 @@ import { useSchemaStore } from '@/store/useSchemaStore';
 import { exportToMermaid, exportToMarkdown, exportToTypeScript } from '@/features/export';
 import { generateMockApi } from '@/features/mockApi';
 import { showToast } from '@/components/ui/Toast';
-import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2 } from 'lucide-react';
+import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2, Menu } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
     theme: 'dark' | 'light';
     onToggleTheme: () => void;
+    onOpenSidebar: () => void;
 }
 
-export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
+export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
     const { schemaModel, nodes, pastNodes, futureNodes, clear, undo, redo } = useSchemaStore();
     const [showExportMenu, setShowExportMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -57,9 +58,18 @@ export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
     const hasData = nodes.length > 0;
 
     return (
-        <header className="h-11 border-b border-border bg-bg-secondary flex items-center px-4 gap-2">
+        <header className="h-11 border-b border-border bg-bg-secondary flex items-center px-2 md:px-4 gap-2">
+            {/* Hamburger Menu (Mobile Only) */}
+            <button
+                onClick={onOpenSidebar}
+                className="md:hidden p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
+                title="Open Sidebar"
+            >
+                <Menu size={16} />
+            </button>
+
             {/* Left: schema summary */}
-            <span className="text-xs text-text-muted">
+            <span className="text-xs text-text-muted hidden sm:inline-block">
                 {schemaModel
                     ? schemaModel.tables.length + ' table' + (schemaModel.tables.length !== 1 ? 's' : '') +
                     ' · ' + schemaModel.relationships.length + ' relationship' + (schemaModel.relationships.length !== 1 ? 's' : '')

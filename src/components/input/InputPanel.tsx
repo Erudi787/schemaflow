@@ -293,8 +293,8 @@ export function InputPanel({
     };
 
     return (
-        <section
-            className="w-[480px] shrink-0 border-r border-border bg-bg-secondary flex flex-col relative"
+        <div
+            className="flex-1 md:w-[480px] md:flex-none flex flex-col border-r border-border bg-bg-primary h-full transition-all duration-300 relative min-w-0"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -385,7 +385,7 @@ export function InputPanel({
                     <p className="text-sm text-text-secondary">Drop your .sql or .json file here</p>
                 </div>
             )}
-        </section>
+        </div>
     );
 }
 
