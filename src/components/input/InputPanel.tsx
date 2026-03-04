@@ -1,11 +1,12 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { sql } from '@codemirror/lang-sql';
 import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
 import type { InputMode } from '@/models/schema';
-import { Database, Braces, Play, FileText } from 'lucide-react';
+import { Database, Braces, Play, FileText, Upload, UploadCloud } from 'lucide-react';
+import { showToast } from '@/components/ui/Toast';
 
 interface InputPanelProps {
     value: string;
@@ -103,7 +104,6 @@ const SQL_SAMPLES = [
     { label: 'PostgreSQL', value: SQL_SAMPLE_PG },
 ];
 
-
 const JSON_SAMPLE = JSON.stringify({
     id: 1,
     name: "John Doe",
@@ -136,6 +136,8 @@ export function InputPanel({
 }: InputPanelProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Initialize and update CodeMirror
     useEffect(() => {
@@ -203,8 +205,68 @@ export function InputPanel({
         [onVisualize]
     );
 
+    // File Handling
+    const handleFile = (file: File) => {
+        // Auto-detect mode from extension
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+        if (ext === '.sql') {
+            onModeChange('sql');
+        } else if (ext === '.json') {
+            onModeChange('json');
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target?.result as string;
+            if (content) {
+                // We use setTimeout to ensure if mode changed, the state update cycle completes first
+                setTimeout(() => {
+                    onValueChange(content);
+                    showToast('success', `Loaded ${file.name}`);
+                }, 0);
+            }
+        };
+        reader.onerror = () => {
+            showToast('error', `Failed to read ${file.name}`);
+        };
+        reader.readAsText(file);
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleFile(file);
+        // Reset input so the same file can be uploaded again if needed
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        // Prevent flickering when dragging over child elements
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFile(file);
+    };
+
     return (
-        <section className="w-[420px] shrink-0 border-r border-border bg-bg-secondary flex flex-col">
+        <section
+            className="w-[420px] shrink-0 border-r border-border bg-bg-secondary flex flex-col relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
             {/* Header with mode toggle */}
             <div className="p-3 border-b border-border flex items-center gap-2">
                 {/* Mode toggle buttons */}
@@ -237,6 +299,23 @@ export function InputPanel({
 
                 <div className="flex-1" />
 
+                {/* Upload button */}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".sql,.json,.txt"
+                    onChange={onFileChange}
+                />
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors"
+                    title="Upload .sql or .json file"
+                >
+                    <Upload size={12} />
+                    Upload
+                </button>
+
                 {/* Sample button */}
                 <button
                     onClick={() => onLoadSample(mode)}
@@ -263,6 +342,17 @@ export function InputPanel({
                 className="flex-1 overflow-hidden"
                 onKeyDown={handleKeyDown}
             />
+
+            {/* Drag Overlay */}
+            {isDragging && (
+                <div className="absolute inset-0 z-50 bg-bg-secondary/90 backdrop-blur-sm flex flex-col items-center justify-center border-2 border-dashed border-accent m-4 rounded-xl">
+                    <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mb-4 pulse-glow">
+                        <UploadCloud size={32} className="text-accent" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-1">Upload File</h3>
+                    <p className="text-sm text-text-secondary">Drop your .sql or .json file here</p>
+                </div>
+            )}
         </section>
     );
 }
