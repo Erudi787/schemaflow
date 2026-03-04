@@ -1,8 +1,9 @@
 import { useSchemaStore } from '@/store/useSchemaStore';
 import { exportToMermaid, exportToMarkdown, exportToTypeScript } from '@/features/export';
 import { generateMockApi } from '@/features/mockApi';
+import { downloadImage } from '@/features/exportImage';
 import { showToast } from '@/components/ui/Toast';
-import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2, Menu } from 'lucide-react';
+import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2, Menu, Image as ImageIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
@@ -53,6 +54,22 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
     const handleMockApi = () => {
         if (!schemaModel) return;
         copyToClipboard(generateMockApi(schemaModel), 'Mock API spec');
+    };
+
+    const handleExportImage = async (format: 'png' | 'jpeg' | 'svg') => {
+        if (!schemaModel || nodes.length === 0) return;
+        try {
+            await downloadImage({
+                nodes,
+                format,
+                backgroundColor: theme === 'dark' ? '#0B0D17' : '#FFFFFF',
+            });
+            showToast('success', `Exported as ${format.toUpperCase()}`);
+            setShowExportMenu(false);
+        } catch (error) {
+            showToast('error', 'Failed to export image');
+            console.error(error);
+        }
     };
 
     const hasData = nodes.length > 0;
@@ -127,6 +144,31 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
                             >
                                 <Zap size={12} />
                                 Mock REST API
+                            </button>
+                            <div className="border-t border-border my-1" />
+                            <div className="px-3 py-1.5 text-[10px] font-medium text-text-muted uppercase tracking-wider">
+                                Image
+                            </div>
+                            <button
+                                onClick={() => handleExportImage('png')}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <ImageIcon size={12} />
+                                Download PNG
+                            </button>
+                            <button
+                                onClick={() => handleExportImage('jpeg')}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <ImageIcon size={12} />
+                                Download JPEG
+                            </button>
+                            <button
+                                onClick={() => handleExportImage('svg')}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                            >
+                                <ImageIcon size={12} />
+                                Download SVG
                             </button>
                         </div>
                     )}
