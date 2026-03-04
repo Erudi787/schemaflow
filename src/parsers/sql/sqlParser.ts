@@ -7,7 +7,10 @@ import type {
 
 // ===== SQL DDL Parser =====
 // Parses CREATE TABLE statements into SchemaModel.
-// Supports: CREATE TABLE, columns, PRIMARY KEY, FOREIGN KEY ... REFERENCES, NOT NULL.
+// Supports: MySQL, PostgreSQL, and generic SQL dialects.
+// Handles: CREATE TABLE, columns, PRIMARY KEY, FOREIGN KEY, REFERENCES,
+//          NOT NULL, AUTO_INCREMENT, SERIAL, UNSIGNED, ENUM, schema.table,
+//          multi-word types, array types, ENGINE/CHARSET trailers.
 
 /**
  * Parse SQL DDL input into a SchemaModel.
@@ -62,6 +65,8 @@ function stripComments(sql: string): string {
     let result = sql.replace(/--.*$/gm, '');
     // Remove multi-line comments (/* ... */)
     result = result.replace(/\/\*[\s\S]*?\*\//g, '');
+    // Remove PostgreSQL hash comments (# ...)
+    result = result.replace(/#.*$/gm, '');
     return result;
 }
 
@@ -72,6 +77,18 @@ function splitStatements(sql: string): string[] {
         .filter((s) => s.length > 0);
 }
 
+/**
+ * Strip MySQL engine/charset trailers that come after the closing paren.
+ * e.g., `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`
+ */
+function stripTableTrailer(stmt: string): string {
+    // Remove everything after the last closing paren that looks like a MySQL option
+    return stmt.replace(
+        /\)\s*(ENGINE|DEFAULT\s+CHARSET|CHARSET|COLLATE|AUTO_INCREMENT|COMMENT|ROW_FORMAT|TABLESPACE)\s*=?.*/i,
+        ')'
+    );
+}
+
 interface CreateTableResult {
     success: true;
     table: SchemaTable;
@@ -79,17 +96,20 @@ interface CreateTableResult {
 }
 
 function parseCreateTable(
-    stmt: string
+    rawStmt: string
 ): CreateTableResult | { success: false; error: string } {
-    // Match: CREATE TABLE [IF NOT EXISTS] <name> ( ... )
+    const stmt = stripTableTrailer(rawStmt);
+
+    // Match: CREATE TABLE [IF NOT EXISTS] [schema.]<name> ( ... )
+    // Supports: schema.table, `schema`.`table`, "schema"."table"
     const tableMatch = stmt.match(
-        /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"'\[]?(\w+)[`"'\]]?\s*\(([\s\S]+)\)/i
+        /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([\s\S]+)\)/i
     );
 
     if (!tableMatch) {
         return {
             success: false,
-            error: `Could not parse CREATE TABLE statement: ${stmt.substring(0, 60)}...`,
+            error: `Could not parse CREATE TABLE statement: ${rawStmt.substring(0, 60)}...`,
         };
     }
 
@@ -100,7 +120,7 @@ function parseCreateTable(
     const relationships: SchemaRelationship[] = [];
     const tablePrimaryKeys: string[] = [];
 
-    // Split body by commas, respecting parentheses depth
+    // Split body by commas, respecting parentheses depth and quoted strings
     const lines = splitByComma(body);
 
     for (const line of lines) {
@@ -119,7 +139,7 @@ function parseCreateTable(
 
         // Table-level FOREIGN KEY
         const fkMatch = trimmed.match(
-            /^\s*(?:CONSTRAINT\s+\w+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+            /^\s*(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
         );
         if (fkMatch) {
             const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
@@ -146,8 +166,8 @@ function parseCreateTable(
             continue;
         }
 
-        // Table-level UNIQUE, CHECK, INDEX — skip
-        if (/^\s*(UNIQUE|CHECK|INDEX|KEY|CONSTRAINT)/i.test(trimmed)) {
+        // Table-level constraints to skip
+        if (/^\s*(UNIQUE|CHECK|INDEX|KEY|CONSTRAINT|USING|TABLESPACE|WITH|INHERITS|EXCLUDE|LIKE)/i.test(trimmed)) {
             continue;
         }
 
@@ -180,32 +200,100 @@ function parseCreateTable(
     };
 }
 
+/**
+ * Known multi-word SQL types that should be captured as a single type.
+ */
+const MULTI_WORD_TYPES: Record<string, string> = {
+    'DOUBLE PRECISION': 'DOUBLE PRECISION',
+    'CHARACTER VARYING': 'CHARACTER VARYING',
+    'TIMESTAMP WITHOUT TIME ZONE': 'TIMESTAMP',
+    'TIMESTAMP WITH TIME ZONE': 'TIMESTAMPTZ',
+    'TIME WITHOUT TIME ZONE': 'TIME',
+    'TIME WITH TIME ZONE': 'TIMETZ',
+    'BIT VARYING': 'BIT VARYING',
+    'LONG TEXT': 'LONGTEXT',
+    'MEDIUM TEXT': 'MEDIUMTEXT',
+    'TINY INT': 'TINYINT',
+    'SMALL INT': 'SMALLINT',
+    'BIG INT': 'BIGINT',
+    'LONG BLOB': 'LONGBLOB',
+    'MEDIUM BLOB': 'MEDIUMBLOB',
+    'TINY BLOB': 'TINYBLOB',
+};
+
 function parseColumnDef(
     line: string,
     tableName: string,
     relationships: SchemaRelationship[]
 ): SchemaField | null {
-    // Match: <name> <type> [constraints...]
-    const colMatch = line.match(
-        /^[`"'\[]?(\w+)[`"'\]]?\s+([\w]+(?:\s*\([^)]*\))?)\s*(.*)/i
-    );
-    if (!colMatch) return null;
+    // First, try to match multi-word types before the single-word regex
+    let name: string | null = null;
+    let type = '';
+    let constraintsRaw = '';
+    let constraintsUpper = '';
+    let matched = false;
 
-    const name = colMatch[1];
-    const type = colMatch[2].toUpperCase();
-    const constraints = colMatch[3].toUpperCase();
+    // Try matching multi-word types first
+    for (const multiType of Object.keys(MULTI_WORD_TYPES)) {
+        const pattern = new RegExp(
+            `^[\\x60"'\\[]?(\\w+)[\\x60"'\\]]?\\s+(${multiType})\\b(.*)$`,
+            'i'
+        );
+        const m = line.match(pattern);
+        if (m) {
+            name = m[1];
+            type = MULTI_WORD_TYPES[multiType];
+            constraintsRaw = m[3] || '';
+            constraintsUpper = constraintsRaw.toUpperCase();
+            matched = true;
+            break;
+        }
+    }
 
-    const isPrimaryKey = /PRIMARY\s+KEY/i.test(constraints);
-    const isForeignKey = /REFERENCES/i.test(constraints);
-    const isNullable = !/NOT\s+NULL/i.test(constraints) && !isPrimaryKey;
+    // Fallback to single-word type match
+    if (!matched) {
+        // Match: <name> <type>[(<params>)][[][]] [constraints...]
+        // Supports: INT, VARCHAR(255), TEXT[], ENUM('a','b','c'), SERIAL, etc.
+        const colMatch = line.match(
+            /^[`"'\[]?(\w+)[`"'\]]?\s+([\w]+(?:\s*\([^)]*\))?(?:\[\])?)\s*(.*)/i
+        );
+        if (!colMatch) return null;
+
+        name = colMatch[1];
+        type = colMatch[2].toUpperCase();
+        constraintsRaw = colMatch[3] || '';
+        constraintsUpper = constraintsRaw.toUpperCase();
+    }
+
+    if (!name) return null;
+
+    // Strip UNSIGNED from type (MySQL)
+    type = type.replace(/\s*UNSIGNED/i, '').trim();
+
+    // Check for UNSIGNED in constraints too
+    constraintsUpper = constraintsUpper.replace(/\bUNSIGNED\b/i, '').trim();
+
+    // Detect SERIAL/BIGSERIAL as auto-increment PK types (PostgreSQL)
+    const isSerialType = /^(SERIAL|BIGSERIAL|SMALLSERIAL)$/i.test(type);
+
+    const isPrimaryKey = /PRIMARY\s+KEY/i.test(constraintsUpper) || isSerialType || /AUTO_INCREMENT/i.test(constraintsUpper);
+    const isForeignKey = /REFERENCES/i.test(constraintsUpper);
+    const isNullable = !/NOT\s+NULL/i.test(constraintsUpper) && !isPrimaryKey;
+
+    // Normalize SERIAL types for display
+    if (isSerialType) {
+        if (/^BIGSERIAL$/i.test(type)) type = 'BIGINT';
+        else if (/^SMALLSERIAL$/i.test(type)) type = 'SMALLINT';
+        else type = 'INTEGER';
+    }
 
     let references: SchemaField['references'];
 
     if (isForeignKey) {
         // Match against the original-casing constraint string to preserve table/field names
-        const originalConstraints = colMatch[3];
-        const refMatch = originalConstraints.match(
-            /REFERENCES\s+[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+        // Support schema.table references
+        const refMatch = constraintsRaw.match(
+            /REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
         );
         if (refMatch) {
             const refTable = refMatch[1];
@@ -234,16 +322,33 @@ function splitByComma(body: string): string[] {
     const parts: string[] = [];
     let current = '';
     let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
 
-    for (const char of body) {
-        if (char === '(') depth++;
-        if (char === ')') depth--;
-        if (char === ',' && depth === 0) {
-            parts.push(current);
-            current = '';
-        } else {
-            current += char;
+    for (let i = 0; i < body.length; i++) {
+        const char = body[i];
+        const prevChar = i > 0 ? body[i - 1] : '';
+
+        // Track quote state (skip escaped quotes)
+        if (char === "'" && !inDoubleQuote && prevChar !== '\\') {
+            inSingleQuote = !inSingleQuote;
         }
+        if (char === '"' && !inSingleQuote && prevChar !== '\\') {
+            inDoubleQuote = !inDoubleQuote;
+        }
+
+        // Track parentheses depth (only outside quotes)
+        if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(') depth++;
+            if (char === ')') depth--;
+            if (char === ',' && depth === 0) {
+                parts.push(current);
+                current = '';
+                continue;
+            }
+        }
+
+        current += char;
     }
     if (current.trim()) parts.push(current);
 

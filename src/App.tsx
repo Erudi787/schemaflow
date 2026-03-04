@@ -1,17 +1,18 @@
 import { useSchemaStore } from '@/store/useSchemaStore';
-import { InputPanel, SQL_SAMPLE, JSON_SAMPLE } from '@/components/input/InputPanel';
+import { InputPanel, SQL_SAMPLES, JSON_SAMPLE } from '@/components/input/InputPanel';
 import { SchemaCanvas } from '@/components/canvas/SchemaCanvas';
 import { Toolbar } from '@/components/toolbar/Toolbar';
 import { DiagramSidebar } from '@/components/sidebar/DiagramSidebar';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { AlertCircle, X } from 'lucide-react';
-import { useCallback } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
+import { useCallback, useRef } from 'react';
 
 function App() {
   const {
-    rawInput,
+    sqlInput,
+    jsonInput,
     inputMode,
     flowData,
     error,
@@ -20,14 +21,25 @@ function App() {
     visualize,
   } = useSchemaStore();
 
+  // Compute active input from the correct buffer
+  const rawInput = inputMode === 'sql' ? sqlInput : jsonInput;
+
   const { theme, toggleTheme } = useTheme();
   useKeyboardShortcuts();
 
+  const sqlSampleIndex = useRef(0);
+
   const handleLoadSample = useCallback(
     (sample: 'sql' | 'json') => {
-      const content = sample === 'sql' ? SQL_SAMPLE : JSON_SAMPLE;
-      setInputMode(sample);
-      setRawInput(content);
+      if (sample === 'sql') {
+        const current = SQL_SAMPLES[sqlSampleIndex.current % SQL_SAMPLES.length];
+        setInputMode('sql');
+        setRawInput(current.value);
+        sqlSampleIndex.current++;
+      } else {
+        setInputMode('json');
+        setRawInput(JSON_SAMPLE);
+      }
     },
     [setInputMode, setRawInput]
   );
@@ -43,14 +55,22 @@ function App() {
           {/* Toolbar */}
           <Toolbar theme={theme} onToggleTheme={toggleTheme} />
 
-          {/* Error bar */}
+          {/* Error panel */}
           {error && (
-            <div className="px-4 py-2 bg-error/10 border-b border-error/30 flex items-center gap-2 text-sm text-error">
-              <AlertCircle size={14} />
-              <span className="flex-1">{error}</span>
+            <div
+              className="px-4 py-2.5 bg-error/10 border-b border-error/30 flex items-start gap-2.5 text-sm"
+              style={{ animation: 'slideDown 0.2s ease-out' }}
+            >
+              <AlertTriangle size={16} className="text-error shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <span className="text-error/70 font-medium text-xs uppercase tracking-wide">
+                  {inputMode === 'sql' ? 'SQL Parse Error' : 'JSON Parse Error'}
+                </span>
+                <p className="text-error mt-0.5 leading-relaxed">{error}</p>
+              </div>
               <button
                 onClick={() => useSchemaStore.setState({ error: null })}
-                className="p-1 hover:bg-error/20 rounded transition-colors"
+                className="p-1 hover:bg-error/20 rounded transition-colors text-error/60 hover:text-error shrink-0"
               >
                 <X size={14} />
               </button>
@@ -79,4 +99,3 @@ function App() {
 }
 
 export default App;
-

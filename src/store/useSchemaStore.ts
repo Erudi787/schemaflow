@@ -12,8 +12,9 @@ import {
 } from '@/store/persistence';
 
 interface SchemaStore {
-    // Input state
-    rawInput: string;
+    // Input state — separate buffers per tab
+    sqlInput: string;
+    jsonInput: string;
     inputMode: InputMode;
 
     // Parsed state
@@ -26,6 +27,7 @@ interface SchemaStore {
     activeDiagramId: string | null;
 
     // Actions — input
+    getRawInput: () => string;
     setRawInput: (input: string) => void;
     setInputMode: (mode: InputMode) => void;
     visualize: () => void;
@@ -40,7 +42,8 @@ interface SchemaStore {
 }
 
 export const useSchemaStore = create<SchemaStore>((set, get) => ({
-    rawInput: '',
+    sqlInput: '',
+    jsonInput: '',
     inputMode: 'sql',
     schemaModel: null,
     flowData: null,
@@ -48,13 +51,26 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     savedDiagrams: [],
     activeDiagramId: null,
 
-    setRawInput: (input) => set({ rawInput: input }),
+    getRawInput: () => {
+        const { inputMode, sqlInput, jsonInput } = get();
+        return inputMode === 'sql' ? sqlInput : jsonInput;
+    },
+
+    setRawInput: (input) => {
+        const { inputMode } = get();
+        if (inputMode === 'sql') {
+            set({ sqlInput: input });
+        } else {
+            set({ jsonInput: input });
+        }
+    },
 
     setInputMode: (mode) => set({ inputMode: mode, error: null }),
 
     visualize: () => {
-        const { rawInput, inputMode } = get();
-        const result = parse(rawInput, inputMode);
+        const state = get();
+        const rawInput = state.inputMode === 'sql' ? state.sqlInput : state.jsonInput;
+        const result = parse(rawInput, state.inputMode);
 
         if (!result.success) {
             set({ error: result.error, schemaModel: null, flowData: null });
@@ -72,14 +88,16 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         });
     },
 
-    clear: () =>
+    clear: () => {
+        const { inputMode } = get();
         set({
-            rawInput: '',
+            ...(inputMode === 'sql' ? { sqlInput: '' } : { jsonInput: '' }),
             schemaModel: null,
             flowData: null,
             error: null,
             activeDiagramId: null,
-        }),
+        });
+    },
 
     // Persistence actions
     initDiagrams: () => {
@@ -88,21 +106,22 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     },
 
     saveCurrent: (name) => {
-        const { rawInput, inputMode, schemaModel, activeDiagramId, savedDiagrams } = get();
+        const state = get();
+        const rawInput = state.inputMode === 'sql' ? state.sqlInput : state.jsonInput;
 
-        if (!schemaModel) return;
+        if (!state.schemaModel) return;
 
         const now = Date.now();
-        const existingDiagram = activeDiagramId
-            ? savedDiagrams.find((d) => d.id === activeDiagramId)
+        const existingDiagram = state.activeDiagramId
+            ? state.savedDiagrams.find((d) => d.id === state.activeDiagramId)
             : null;
 
         const diagram: SavedDiagram = {
-            id: activeDiagramId || generateId(),
+            id: state.activeDiagramId || generateId(),
             name: name || existingDiagram?.name || 'Untitled Diagram',
             rawInput,
-            inputMode,
-            schemaModel,
+            inputMode: state.inputMode,
+            schemaModel: state.schemaModel,
             createdAt: existingDiagram?.createdAt || now,
             updatedAt: now,
         };
@@ -122,8 +141,13 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         const direction = getLayoutDirection(diagram.schemaModel.type);
         const layouted = applyLayout(flow, { direction });
 
+        // Write to the correct input buffer based on the diagram's mode
+        const inputUpdate = diagram.inputMode === 'sql'
+            ? { sqlInput: diagram.rawInput }
+            : { jsonInput: diagram.rawInput };
+
         set({
-            rawInput: diagram.rawInput,
+            ...inputUpdate,
             inputMode: diagram.inputMode,
             schemaModel: diagram.schemaModel,
             flowData: layouted,

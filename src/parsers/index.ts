@@ -12,7 +12,10 @@ export function parse(input: string, mode: InputMode): ParseOutcome {
     const trimmed = input.trim();
 
     if (!trimmed) {
-        return { success: false, error: 'Input is empty.' };
+        const hint = mode === 'sql'
+            ? 'Paste SQL CREATE TABLE statements and click Visualize.'
+            : 'Paste a JSON object or array and click Visualize.';
+        return { success: false, error: `Input is empty. ${hint}` };
     }
 
     switch (mode) {

@@ -16,7 +16,8 @@ interface InputPanelProps {
     onLoadSample: (sample: 'sql' | 'json') => void;
 }
 
-const SQL_SAMPLE = `CREATE TABLE users (
+// -- Generic SQL sample (ANSI-style) --
+const SQL_SAMPLE_GENERIC = `CREATE TABLE users (
   id INTEGER PRIMARY KEY,
   username VARCHAR(50) NOT NULL,
   email VARCHAR(100) NOT NULL,
@@ -38,6 +39,70 @@ CREATE TABLE comments (
   user_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMP NOT NULL
 );`;
+
+// -- MySQL-flavored sample --
+const SQL_SAMPLE_MYSQL = `CREATE TABLE \`users\` (
+  \`id\` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  \`username\` VARCHAR(50) NOT NULL,
+  \`email\` VARCHAR(100) NOT NULL,
+  \`role\` ENUM('admin', 'editor', 'viewer') NOT NULL,
+  \`is_active\` TINYINT(1) NOT NULL DEFAULT 1,
+  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE \`posts\` (
+  \`id\` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  \`title\` VARCHAR(200) NOT NULL,
+  \`body\` LONGTEXT,
+  \`status\` ENUM('draft', 'published', 'archived') NOT NULL DEFAULT 'draft',
+  \`author_id\` INT UNSIGNED NOT NULL,
+  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT \`fk_posts_author\` FOREIGN KEY (\`author_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE \`comments\` (
+  \`id\` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  \`content\` TEXT NOT NULL,
+  \`post_id\` INT UNSIGNED NOT NULL,
+  \`user_id\` INT UNSIGNED NOT NULL,
+  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (\`post_id\`) REFERENCES \`posts\`(\`id\`) ON DELETE CASCADE,
+  FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`;
+
+// -- PostgreSQL-flavored sample --
+const SQL_SAMPLE_PG = `CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  email CHARACTER VARYING(100) NOT NULL,
+  roles TEXT[] NOT NULL DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE posts (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  body TEXT,
+  metadata JSONB DEFAULT '{}',
+  author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE comments (
+  id BIGSERIAL PRIMARY KEY,
+  content TEXT NOT NULL,
+  post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);`;
+
+const SQL_SAMPLES = [
+    { label: 'Generic', value: SQL_SAMPLE_GENERIC },
+    { label: 'MySQL', value: SQL_SAMPLE_MYSQL },
+    { label: 'PostgreSQL', value: SQL_SAMPLE_PG },
+];
+
 
 const JSON_SAMPLE = JSON.stringify({
     id: 1,
@@ -202,4 +267,4 @@ export function InputPanel({
     );
 }
 
-export { SQL_SAMPLE, JSON_SAMPLE };
+export { SQL_SAMPLES, JSON_SAMPLE };

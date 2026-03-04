@@ -56,10 +56,32 @@ export function parseJson(input: string): ParseOutcome {
     } catch (err) {
         if (err instanceof SyntaxError) {
             const posMatch = err.message.match(/position\s+(\d+)/i);
+            const pos = posMatch ? parseInt(posMatch[1], 10) : undefined;
+
+            let context = '';
+            if (pos !== undefined) {
+                // Show a snippet of the input around the error position
+                const start = Math.max(0, pos - 20);
+                const end = Math.min(input.length, pos + 20);
+                const snippet = input.substring(start, end);
+                const pointer = ' '.repeat(Math.min(pos - start, snippet.length)) + '↑';
+                context = `\n  ...${snippet}...\n  ${pointer}`;
+            }
+
+            // Check for common mistakes and suggest fixes
+            let hint = '';
+            if (/,\s*[\]}]/.test(input)) {
+                hint = ' Tip: trailing commas are not allowed in JSON.';
+            } else if (/'/.test(input)) {
+                hint = ' Tip: JSON requires double quotes, not single quotes.';
+            } else if (/\w+\s*:/.test(input) && !/"\w+"\s*:/.test(input)) {
+                hint = ' Tip: JSON keys must be wrapped in double quotes.';
+            }
+
             return {
                 success: false,
-                error: 'Invalid JSON: ' + err.message,
-                column: posMatch ? parseInt(posMatch[1], 10) : undefined,
+                error: `Invalid JSON at position ${pos ?? '?'}: ${err.message}${hint}${context}`,
+                column: pos,
             };
         }
         return {
