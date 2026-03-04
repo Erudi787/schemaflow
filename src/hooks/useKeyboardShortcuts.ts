@@ -11,6 +11,8 @@ export function useKeyboardShortcuts() {
     const visualize = useSchemaStore((s) => s.visualize);
     const saveCurrent = useSchemaStore((s) => s.saveCurrent);
     const schemaModel = useSchemaStore((s) => s.schemaModel);
+    const undo = useSchemaStore((s) => s.undo);
+    const redo = useSchemaStore((s) => s.redo);
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -29,6 +31,18 @@ export function useKeyboardShortcuts() {
                     saveCurrent();
                     showToast('success', 'Diagram saved');
                 }
+            }
+
+            // Ctrl+Z → Undo (don't match Shift+Z)
+            if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            }
+
+            // Ctrl+Y or Ctrl+Shift+Z → Redo
+            if (mod && (e.key === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                redo();
             }
         };
 

@@ -2,7 +2,7 @@ import { useSchemaStore } from '@/store/useSchemaStore';
 import { exportToMermaid, exportToMarkdown, exportToTypeScript } from '@/features/export';
 import { generateMockApi } from '@/features/mockApi';
 import { showToast } from '@/components/ui/Toast';
-import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap } from 'lucide-react';
+import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
@@ -11,7 +11,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
-    const { schemaModel, flowData, clear } = useSchemaStore();
+    const { schemaModel, nodes, pastNodes, futureNodes, clear, undo, redo } = useSchemaStore();
     const [showExportMenu, setShowExportMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +54,7 @@ export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
         copyToClipboard(generateMockApi(schemaModel), 'Mock API spec');
     };
 
-    const hasData = !!flowData;
+    const hasData = nodes.length > 0;
 
     return (
         <header className="h-11 border-b border-border bg-bg-secondary flex items-center px-4 gap-2">
@@ -121,6 +121,25 @@ export function Toolbar({ theme, onToggleTheme }: ToolbarProps) {
                         </div>
                     )}
                 </div>
+
+                <div className="w-px h-5 bg-border mx-1" />
+
+                <button
+                    onClick={undo}
+                    disabled={pastNodes.length === 0}
+                    className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    title="Undo (Ctrl+Z)"
+                >
+                    <Undo2 size={14} />
+                </button>
+                <button
+                    onClick={redo}
+                    disabled={futureNodes.length === 0}
+                    className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    title="Redo (Ctrl+Y/Ctrl+Shift+Z)"
+                >
+                    <Redo2 size={14} />
+                </button>
 
                 <div className="w-px h-5 bg-border mx-1" />
 

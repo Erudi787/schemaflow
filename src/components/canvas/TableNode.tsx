@@ -1,21 +1,29 @@
-import { memo, useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
+import { memo } from 'react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import type { TableNodeData } from '@/transform/toReactFlow';
+import { useSchemaStore } from '@/store/useSchemaStore';
 import { ChevronDown, ChevronRight, Key, Link, Database } from 'lucide-react';
 
-function TableNodeComponent({ data }: NodeProps) {
-    const { label, fields } = data as TableNodeData;
-    const [isCollapsed, setIsCollapsed] = useState(false);
+function TableNodeComponent({ id, data }: NodeProps) {
+    const { label, fields, isCollapsed = false } = data as TableNodeData;
+    const { saveHistorySnapshot } = useSchemaStore();
+    const { updateNodeData } = useReactFlow();
+
     const visibleFields = isCollapsed ? fields.slice(0, 3) : fields;
     const hasMore = fields.length > 3;
+
+    const toggleCollapse = () => {
+        saveHistorySnapshot();
+        updateNodeData(id, { isCollapsed: !isCollapsed });
+    };
 
     return (
         <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px] relative">
             {/* Header */}
             <div
                 className="flex items-center gap-2 px-3 py-2.5 bg-node-sql-header cursor-pointer select-none"
-                onClick={() => hasMore && setIsCollapsed(!isCollapsed)}
+                onClick={() => hasMore && toggleCollapse()}
             >
                 <Database size={14} className="text-white/80" />
                 <span className="text-sm font-semibold text-white flex-1 truncate">
@@ -86,7 +94,7 @@ function TableNodeComponent({ data }: NodeProps) {
             {isCollapsed && hasMore && (
                 <div
                     className="px-3 py-1.5 text-[10px] text-text-muted text-center cursor-pointer hover:bg-bg-hover transition-colors"
-                    onClick={() => setIsCollapsed(false)}
+                    onClick={() => toggleCollapse()}
                 >
                     +{fields.length - 3} more fields
                 </div>

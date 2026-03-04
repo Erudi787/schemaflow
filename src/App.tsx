@@ -14,7 +14,6 @@ function App() {
     sqlInput,
     jsonInput,
     inputMode,
-    flowData,
     error,
     setRawInput,
     setInputMode,
@@ -88,7 +87,7 @@ function App() {
               onLoadSample={handleLoadSample}
             />
 
-            <SchemaCanvas flowData={flowData} />
+            <SchemaCanvas />
           </div>
         </main>
       </div>

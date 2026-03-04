@@ -4,17 +4,13 @@ import {
     Controls,
     MiniMap,
     BackgroundVariant,
-    useNodesState,
-    useEdgesState,
-    type Node,
-    type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useSchemaStore } from '@/store/useSchemaStore';
 import { TableNode } from '@/components/canvas/TableNode';
 import { JsonNode } from '@/components/canvas/JsonNode';
 import { CustomEdge } from '@/components/canvas/CustomEdge';
-import type { FlowData } from '@/transform/toReactFlow';
 
 const nodeTypes = {
     tableNode: TableNode,
@@ -25,27 +21,19 @@ const edgeTypes = {
     custom: CustomEdge,
 };
 
-interface SchemaCanvasProps {
-    flowData: FlowData | null;
-}
-
-export function SchemaCanvas({ flowData }: SchemaCanvasProps) {
-    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-    useEffect(() => {
-        if (flowData) {
-            setNodes(flowData.nodes);
-            setEdges(flowData.edges);
-        }
-    }, [flowData, setNodes, setEdges]);
+export function SchemaCanvas() {
+    const { nodes, edges, onNodesChange, onEdgesChange, saveHistorySnapshot } = useSchemaStore();
 
     const onInit = useCallback((instance: { fitView: () => void }) => {
         // Fit view after initial render
         setTimeout(() => instance.fitView(), 100);
     }, []);
 
-    if (!flowData) {
+    const onNodeDragStart = useCallback(() => {
+        saveHistorySnapshot();
+    }, [saveHistorySnapshot]);
+
+    if (nodes.length === 0) {
         return (
             <div className="flex-1 bg-bg-primary relative">
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -68,6 +56,7 @@ export function SchemaCanvas({ flowData }: SchemaCanvasProps) {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                onNodeDragStart={onNodeDragStart}
                 onInit={onInit}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
+import type { Node, Edge, NodeChange, EdgeChange } from '@xyflow/react';
 import type { InputMode, SchemaModel, SavedDiagram } from '@/models/schema';
-import type { FlowData } from '@/transform/toReactFlow';
 import { parse } from '@/parsers';
 import { toReactFlow } from '@/transform/toReactFlow';
 import { applyLayout, getLayoutDirection } from '@/transform/layout';
@@ -19,8 +20,13 @@ interface SchemaStore {
 
     // Parsed state
     schemaModel: SchemaModel | null;
-    flowData: FlowData | null;
+    nodes: Node[];
+    edges: Edge[];
     error: string | null;
+
+    // History state
+    pastNodes: Node[][];
+    futureNodes: Node[][];
 
     // Saved diagrams
     savedDiagrams: SavedDiagram[];
@@ -32,6 +38,17 @@ interface SchemaStore {
     setInputMode: (mode: InputMode) => void;
     visualize: () => void;
     clear: () => void;
+
+    // React Flow handlers
+    onNodesChange: (changes: NodeChange[]) => void;
+    onEdgesChange: (changes: EdgeChange[]) => void;
+    setNodes: (nodes: Node[]) => void;
+    setEdges: (edges: Edge[]) => void;
+
+    // History actions
+    saveHistorySnapshot: () => void;
+    undo: () => void;
+    redo: () => void;
 
     // Actions — persistence
     initDiagrams: () => void;
@@ -46,8 +63,11 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     jsonInput: '',
     inputMode: 'sql',
     schemaModel: null,
-    flowData: null,
+    nodes: [],
+    edges: [],
     error: null,
+    pastNodes: [],
+    futureNodes: [],
     savedDiagrams: [],
     activeDiagramId: null,
 
@@ -73,7 +93,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         const result = parse(rawInput, state.inputMode);
 
         if (!result.success) {
-            set({ error: result.error, schemaModel: null, flowData: null });
+            set({ error: result.error, schemaModel: null, nodes: [], edges: [] });
             return;
         }
 
@@ -83,8 +103,11 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
 
         set({
             schemaModel: result.data,
-            flowData: layouted,
+            nodes: layouted.nodes,
+            edges: layouted.edges,
             error: null,
+            pastNodes: [],
+            futureNodes: [],
         });
     },
 
@@ -93,11 +116,65 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         set({
             ...(inputMode === 'sql' ? { sqlInput: '' } : { jsonInput: '' }),
             schemaModel: null,
-            flowData: null,
+            nodes: [],
+            edges: [],
             error: null,
+            pastNodes: [],
+            futureNodes: [],
             activeDiagramId: null,
         });
     },
+
+    // History actions
+    saveHistorySnapshot: () => {
+        const { nodes, pastNodes } = get();
+        if (nodes.length === 0) return;
+        // Keep max 50 history states
+        const newPast = [...pastNodes, nodes].slice(-50);
+        set({ pastNodes: newPast, futureNodes: [] });
+    },
+
+    undo: () => {
+        const { nodes, pastNodes, futureNodes } = get();
+        if (pastNodes.length === 0) return;
+
+        const previousNodes = pastNodes[pastNodes.length - 1];
+        const newPast = pastNodes.slice(0, -1);
+        const newFuture = [nodes, ...futureNodes];
+
+        set({
+            nodes: previousNodes,
+            pastNodes: newPast,
+            futureNodes: newFuture,
+        });
+    },
+
+    redo: () => {
+        const { nodes, pastNodes, futureNodes } = get();
+        if (futureNodes.length === 0) return;
+
+        const nextNodes = futureNodes[0];
+        const newFuture = futureNodes.slice(1);
+        const newPast = [...pastNodes, nodes];
+
+        set({
+            nodes: nextNodes,
+            pastNodes: newPast,
+            futureNodes: newFuture,
+        });
+    },
+
+    // React Flow internal handlers
+    onNodesChange: (changes) => {
+        set({ nodes: applyNodeChanges(changes, get().nodes) });
+    },
+
+    onEdgesChange: (changes) => {
+        set({ edges: applyEdgeChanges(changes, get().edges) });
+    },
+
+    setNodes: (nodes) => set({ nodes }),
+    setEdges: (edges) => set({ edges }),
 
     // Persistence actions
     initDiagrams: () => {
@@ -150,8 +227,11 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
             ...inputUpdate,
             inputMode: diagram.inputMode,
             schemaModel: diagram.schemaModel,
-            flowData: layouted,
+            nodes: layouted.nodes,
+            edges: layouted.edges,
             error: null,
+            pastNodes: [],
+            futureNodes: [],
             activeDiagramId: id,
         });
     },

@@ -8,6 +8,7 @@ export interface TableNodeData {
     label: string;
     fields: SchemaField[];
     tableType: 'sql' | 'json';
+    isCollapsed?: boolean;
     [key: string]: unknown;
 }
 
