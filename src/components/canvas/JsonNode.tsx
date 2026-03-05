@@ -25,7 +25,7 @@ function JsonNodeComponent({ id, data }: NodeProps) {
 
     return (
         <div
-            className="rounded-lg border overflow-hidden shadow-md min-w-[220px] relative"
+            className="rounded-lg border shadow-md min-w-[220px] relative"
             style={{
                 backgroundColor: customStyle.backgroundColor || 'var(--color-bg-secondary)',
                 borderColor: customStyle.borderColor || 'var(--color-border)',
@@ -41,7 +41,7 @@ function JsonNodeComponent({ id, data }: NodeProps) {
             />
             {/* Header */}
             <div
-                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none rounded-t-lg ${isCollapsed ? 'rounded-b-lg' : ''}`}
                 style={{
                     backgroundColor: customStyle.headerColor || 'var(--color-node-json-header)',
                 }}
@@ -62,60 +62,62 @@ function JsonNodeComponent({ id, data }: NodeProps) {
 
             {/* Fields */}
             {!isCollapsed && (
-                <div className="divide-y divide-border/50">
-                    {fields.map((field) => {
-                        const isArray = field.type.startsWith('array<');
-                        const isObject = field.type === 'object';
-                        const IconComponent = isArray ? List : (TYPE_ICONS[field.type] || Type);
+                <div className="overflow-hidden rounded-b-lg">
+                    <div className="divide-y divide-border/50">
+                        {fields.map((field) => {
+                            const isArray = field.type.startsWith('array<');
+                            const isObject = field.type === 'object';
+                            const IconComponent = isArray ? List : (TYPE_ICONS[field.type] || Type);
 
-                        return (
-                            <div
-                                key={field.name}
-                                className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors relative"
-                            >
-                                {/* Per-field handles for edge connections */}
-                                <Handle
-                                    type="source"
-                                    position={Position.Right}
-                                    id={field.name}
-                                    className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
-                                    style={{ top: '50%' }}
-                                />
-                                <Handle
-                                    type="target"
-                                    position={Position.Left}
-                                    id={field.name}
-                                    className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
-                                    style={{ top: '50%' }}
-                                />
+                            return (
+                                <div
+                                    key={field.name}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors relative"
+                                >
+                                    {/* Per-field handles for edge connections */}
+                                    <Handle
+                                        type="source"
+                                        position={Position.Right}
+                                        id={field.name}
+                                        className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
+                                        style={{ top: '50%' }}
+                                    />
+                                    <Handle
+                                        type="target"
+                                        position={Position.Left}
+                                        id={field.name}
+                                        className="!w-1.5 !h-1.5 !bg-accent-secondary !border-accent-secondary-hover"
+                                        style={{ top: '50%' }}
+                                    />
 
-                                {/* Type icon */}
-                                <IconComponent
-                                    size={11}
-                                    className={
-                                        isObject || isArray
-                                            ? 'text-accent-secondary'
-                                            : 'text-text-muted'
-                                    }
-                                />
+                                    {/* Type icon */}
+                                    <IconComponent
+                                        size={11}
+                                        className={
+                                            isObject || isArray
+                                                ? 'text-accent-secondary'
+                                                : 'text-text-muted'
+                                        }
+                                    />
 
-                                {/* Field name */}
-                                <span className="text-text-primary font-medium truncate flex-1">
-                                    {field.name}
-                                </span>
+                                    {/* Field name */}
+                                    <span className="text-text-primary font-medium truncate flex-1">
+                                        {field.name}
+                                    </span>
 
-                                {/* Type label */}
-                                <span className="text-text-muted font-mono text-[10px] shrink-0">
-                                    {field.type}
-                                </span>
+                                    {/* Type label */}
+                                    <span className="text-text-muted font-mono text-[10px] shrink-0">
+                                        {field.type}
+                                    </span>
 
-                                {/* Nullable */}
-                                {field.isNullable && (
-                                    <span className="text-nullable-badge text-[9px]">?</span>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    {/* Nullable */}
+                                    {field.isNullable && (
+                                        <span className="text-nullable-badge text-[9px]">?</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </div>
