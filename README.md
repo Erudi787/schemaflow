@@ -23,6 +23,10 @@ Here's what you can do with SchemaFlow:
   
 - **JSON Visualization**: Paste any JSON API response and see its nested structure broken down into interconnected nodes — objects, arrays, and primitives all clearly mapped.
 
+- **Advanced SQL Dialects**: Natively parses PostgreSQL-specific types (`UUID`, `JSONB`, `TIMESTAMPTZ`) and MySQL configurations (`ENUM`, `UNSIGNED`). Automatically handles schema-qualified tables (`"public"."users"`).
+
+- **Complex Relational Parsing**: Robust Dagre layout physics gracefully traces self-referencing table relationships (e.g., `manager_id -> id`) and accurately maps composite primary/foreign keys without crashing.
+
 - **Field-Level Edge Connections**: Edges connect at the exact field row, not just the node center. You can see that `posts.author_id` links to `users.id` with the line going from one field to another.
 
 - **Relationship Labels**: Every edge is labeled with the column linkage (e.g., `comments.post_id → posts.id`) and a relationship badge (`1:N`, `1:1`).
@@ -78,6 +82,7 @@ During this project, I've picked up important skills and a deeper understanding 
 ### 📐 Graph Layout with Dagre:
 
 - **Auto Layout**: Used Dagre to compute positions for nodes based on their relationships. Learned how to dynamically formulate node dimensions spanning varied header/field heights.
+- **Cyclic Graphs**: Navigated `acyclicer` greedy modes to prevent algorithm failures when users establish self-referential edge connections.
 
 ### 🏪 State Management with Zustand:
 
@@ -85,10 +90,8 @@ During this project, I've picked up important skills and a deeper understanding 
 
 ## 💭 How can it be improved?
 
-- Add support for more SQL dialects (MySQL, PostgreSQL-specific syntax).
 - Add cloud-based persistence (e.g. Supabase/Firebase) replacing `localStorage`.
 - Add a real-time collaboration mode using WebSockets (e.g. Liveblocks or Yjs).
-- Implement advanced relational parsing (e.g. self-referencing relationships, composite keys).
 
 ## 🚦 Running the Project
 
