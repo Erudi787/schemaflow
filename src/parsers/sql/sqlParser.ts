@@ -32,6 +32,9 @@ export function parseSql(input: string): ParseOutcome {
                 relationships.push(...result.relationships);
             } else if (/^\s*ALTER\s+TABLE/i.test(stmt)) {
                 parseAlterTable(stmt, tables, relationships);
+            } else if (/^\s*(CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+SEQUENCE|CREATE\s+EXTENSION|SET\s+|DROP\s+|COMMENT\s+ON|ALTER\s+SEQUENCE|GRANT\s+|REVOKE\s+)/i.test(stmt)) {
+                // Safely ignore standard DDL dump metadata that doesn't affect the ERD
+                continue;
             }
         }
 
@@ -103,7 +106,7 @@ function parseCreateTable(
     // Match: CREATE TABLE [IF NOT EXISTS] [schema.]<name> ( ... )
     // Supports: schema.table, `schema`.`table`, "schema"."table"
     const tableMatch = stmt.match(
-        /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([\s\S]+)\)/i
+        /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^(]+)\s*\(([\s\S]+)\)/i
     );
 
     if (!tableMatch) {
@@ -113,7 +116,9 @@ function parseCreateTable(
         };
     }
 
-    const tableName = tableMatch[1];
+    const tableNameRaw = tableMatch[1].trim();
+    // Strip quotes and spaces, keep schema dot if present (e.g. "public"."users" -> public.users)
+    const tableName = tableNameRaw.replace(/[`"'\[\]\s]/g, '');
     const body = tableMatch[2];
 
     const fields: SchemaField[] = [];
@@ -132,19 +137,20 @@ function parseCreateTable(
             /^\s*PRIMARY\s+KEY\s*\(([^)]+)\)/i
         );
         if (pkMatch) {
-            const keys = pkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+            const keys = pkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
             tablePrimaryKeys.push(...keys);
             continue;
         }
 
         // Table-level FOREIGN KEY
         const fkMatch = trimmed.match(
-            /^\s*(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+            /^\s*(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^(]+)\s*\(([^)]+)\)/i
         );
         if (fkMatch) {
-            const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
-            const refTable = fkMatch[2];
-            const refFields = fkMatch[3].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+            const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
+            const refTableRaw = fkMatch[2].trim();
+            const refTable = refTableRaw.replace(/[`"'\[\]\s]/g, '');
+            const refFields = fkMatch[3].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
 
             for (let i = 0; i < localFields.length; i++) {
                 // Mark the matching field as FK
@@ -209,10 +215,12 @@ function parseAlterTable(
     relationships: SchemaRelationship[]
 ): void {
     // Match: ALTER TABLE [schema.]<name> <action>
-    const match = rawStmt.match(/ALTER\s+TABLE\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s+(.+)/i);
+    // Name is everything up to the first space or Action keyword
+    const match = rawStmt.match(/ALTER\s+TABLE\s+([^\s]+)\s+(.+)/i);
     if (!match) return;
 
-    const tableName = match[1];
+    const tableNameRaw = match[1].trim();
+    const tableName = tableNameRaw.replace(/[`"'\[\]\s]/g, '');
     const actionStr = match[2].trim();
 
     const table = tables.find((t) => t.name === tableName);
@@ -220,12 +228,13 @@ function parseAlterTable(
 
     // Support: ADD [CONSTRAINT <name>] FOREIGN KEY (<col>) REFERENCES <table>(<col>)
     const fkMatch = actionStr.match(
-        /ADD\s+(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+        /ADD\s+(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^(]+)\s*\(([^)]+)\)/i
     );
     if (fkMatch) {
-        const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
-        const refTable = fkMatch[2];
-        const refFields = fkMatch[3].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+        const localFields = fkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
+        const refTableRaw = fkMatch[2].trim();
+        const refTable = refTableRaw.replace(/[`"'\[\]\s]/g, '');
+        const refFields = fkMatch[3].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
 
         for (let i = 0; i < localFields.length; i++) {
             const existingField = table.fields.find((f) => f.name === localFields[i]);
@@ -248,7 +257,7 @@ function parseAlterTable(
     // Support: ADD [CONSTRAINT <name>] PRIMARY KEY (<col>)
     const pkMatch = actionStr.match(/ADD\s+(?:CONSTRAINT\s+[`"'\[]?\w+[`"'\]]?\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)/i);
     if (pkMatch) {
-        const keys = pkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]]/g, ''));
+        const keys = pkMatch[1].split(',').map((k) => k.trim().replace(/[`"'\[\]\s]/g, ''));
         for (const pkName of keys) {
             const field = table.fields.find((f) => f.name === pkName);
             if (field) {
@@ -273,7 +282,7 @@ function parseAlterTable(
  */
 const MULTI_WORD_TYPES: Record<string, string> = {
     'DOUBLE PRECISION': 'DOUBLE PRECISION',
-    'CHARACTER VARYING': 'CHARACTER VARYING',
+    'CHARACTER VARYING': 'VARCHAR',
     'TIMESTAMP WITHOUT TIME ZONE': 'TIMESTAMP',
     'TIMESTAMP WITH TIME ZONE': 'TIMESTAMPTZ',
     'TIME WITHOUT TIME ZONE': 'TIME',
@@ -361,11 +370,12 @@ function parseColumnDef(
         // Match against the original-casing constraint string to preserve table/field names
         // Support schema.table references
         const refMatch = constraintsRaw.match(
-            /REFERENCES\s+(?:[`"'\[]?\w+[`"'\]]?\.)?[`"'\[]?(\w+)[`"'\]]?\s*\(([^)]+)\)/i
+            /REFERENCES\s+([^(]+)\s*\(([^)]+)\)/i
         );
         if (refMatch) {
-            const refTable = refMatch[1];
-            const refField = refMatch[2].trim().replace(/[`"'\[\]]/g, '');
+            const refTableRaw = refMatch[1].trim();
+            const refTable = refTableRaw.replace(/[`"'\[\]\s]/g, '');
+            const refField = refMatch[2].trim().replace(/[`"'\[\]\s]/g, '');
             references = { table: refTable, field: refField };
 
             relationships.push({

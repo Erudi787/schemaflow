@@ -35,6 +35,7 @@ export function applyLayout(
         ranksep: opts.rankSpacing,
         marginx: 40,
         marginy: 40,
+        acyclicer: 'greedy', // Re-aligns cycles without exploding the algorithm (A->A, B->A->B)
     });
 
     // Add nodes with their dimensions
