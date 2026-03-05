@@ -32,7 +32,7 @@ function App() {
   // Compute active input from the correct buffer
   const rawInput = inputMode === 'sql' ? sqlInput : jsonInput;
 
-  const { theme, toggleTheme } = useTheme();
+  const { theme, themes, setTheme, toggleTheme } = useTheme();
   useKeyboardShortcuts();
 
   const sqlSampleIndex = useRef(0);
@@ -66,6 +66,8 @@ function App() {
           {/* Toolbar */}
           <Toolbar
             theme={theme}
+            themes={themes}
+            setTheme={setTheme}
             onToggleTheme={toggleTheme}
             onOpenSidebar={() => setIsSidebarOpen(true)}
           />

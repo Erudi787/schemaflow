@@ -1,9 +1,10 @@
 import { memo } from 'react';
 import { Handle, Position, useReactFlow } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import type { TableNodeData } from '@/transform/toReactFlow';
+import type { TableNodeData, NodeCustomStyle } from '@/transform/toReactFlow';
 import { useSchemaStore } from '@/store/useSchemaStore';
 import { ChevronDown, ChevronRight, Key, Link, Database } from 'lucide-react';
+import { NodeCustomizer } from '@/components/canvas/NodeCustomizer';
 
 function TableNodeComponent({ id, data }: NodeProps) {
     const { label, fields, isCollapsed = false } = data as TableNodeData;
@@ -18,11 +19,22 @@ function TableNodeComponent({ id, data }: NodeProps) {
         updateNodeData(id, { isCollapsed: !isCollapsed });
     };
 
+    const customStyle = (data.style || {}) as NodeCustomStyle;
+
     return (
-        <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px] relative">
+        <div
+            className="rounded-lg border overflow-hidden shadow-md min-w-[220px] relative"
+            style={{
+                backgroundColor: customStyle.backgroundColor || 'var(--color-bg-secondary)',
+                borderColor: customStyle.borderColor || 'var(--color-border)',
+            }}
+        >
             {/* Header */}
             <div
-                className="flex items-center gap-2 px-3 py-2.5 bg-node-sql-header cursor-pointer select-none"
+                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                style={{
+                    backgroundColor: customStyle.headerColor || 'var(--color-node-sql-header)',
+                }}
                 onClick={() => hasMore && toggleCollapse()}
             >
                 <Database size={14} className="text-white/80" />
@@ -37,6 +49,7 @@ function TableNodeComponent({ id, data }: NodeProps) {
                 <span className="text-[10px] text-white/50 ml-1">
                     {fields.length} fields
                 </span>
+                <NodeCustomizer nodeId={id} currentStyle={customStyle} />
             </div>
 
             {/* Fields */}

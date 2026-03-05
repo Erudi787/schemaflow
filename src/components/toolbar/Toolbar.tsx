@@ -3,32 +3,42 @@ import { exportToMermaid, exportToMarkdown, exportToTypeScript } from '@/feature
 import { generateMockApi } from '@/features/mockApi';
 import { downloadImage } from '@/features/exportImage';
 import { showToast } from '@/components/ui/Toast';
-import { Download, Moon, Sun, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2, Menu, Image as ImageIcon } from 'lucide-react';
+import { Download, Palette, Trash2, Copy, Code, FileText, Zap, Undo2, Redo2, Menu, Image as ImageIcon, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import type { Theme } from '@/hooks/useTheme';
 
 interface ToolbarProps {
-    theme: 'dark' | 'light';
-    onToggleTheme: () => void;
+    theme: Theme;
+    themes: Theme[];
+    setTheme: (t: Theme) => void;
+    onToggleTheme: () => void; // Keeping for backward compat/quick toggle if needed
     onOpenSidebar: () => void;
 }
 
-export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
+export function Toolbar({ theme, themes, setTheme, onOpenSidebar }: ToolbarProps) {
     const { schemaModel, nodes, pastNodes, futureNodes, clear, undo, redo } = useSchemaStore();
     const [showExportMenu, setShowExportMenu] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+    const [showThemeMenu, setShowThemeMenu] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
+    const themeMenuRef = useRef<HTMLDivElement>(null);
 
-    // Close menu on outside click
+    const [isTransparent, setIsTransparent] = useState(false);
+
+    // Close menus on outside click
     useEffect(() => {
         const handler = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
                 setShowExportMenu(false);
             }
+            if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+                setShowThemeMenu(false);
+            }
         };
-        if (showExportMenu) {
+        if (showExportMenu || showThemeMenu) {
             document.addEventListener('mousedown', handler);
             return () => document.removeEventListener('mousedown', handler);
         }
-    }, [showExportMenu]);
+    }, [showExportMenu, showThemeMenu]);
 
     const copyToClipboard = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
@@ -62,7 +72,10 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
             await downloadImage({
                 nodes,
                 format,
-                backgroundColor: theme === 'dark' ? '#0B0D17' : '#FFFFFF',
+                // If transparent is checked, background gets wiped anyway automatically in downloadImage.
+                // By passing undefined instead of #000, we let html-to-image render natively.
+                backgroundColor: theme === 'light' ? '#ffffff' : '#0a0a0f',
+                isTransparent,
             });
             showToast('success', `Exported as ${format.toUpperCase()}`);
             setShowExportMenu(false);
@@ -103,19 +116,23 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
             {/* Right: actions */}
             <div className="flex items-center gap-1">
                 {/* Export dropdown */}
-                <div className="relative" ref={menuRef}>
+                <div className="relative" ref={exportMenuRef}>
                     <button
-                        onClick={() => setShowExportMenu(!showExportMenu)}
+                        onClick={() => {
+                            setShowExportMenu(!showExportMenu);
+                            setShowThemeMenu(false);
+                        }}
                         disabled={!hasData}
                         className="flex items-center gap-1 px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
                         title="Export schema"
                     >
                         <Download size={13} />
                         Export
+                        <ChevronDown size={12} className="opacity-50" />
                     </button>
 
                     {showExportMenu && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-bg-elevated border border-border rounded-lg shadow-lg py-1 z-50">
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-bg-elevated border border-border rounded-lg shadow-lg py-1 z-50">
                             <button
                                 onClick={handleExportMermaid}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
@@ -146,8 +163,23 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
                                 Mock REST API
                             </button>
                             <div className="border-t border-border my-1" />
-                            <div className="px-3 py-1.5 text-[10px] font-medium text-text-muted uppercase tracking-wider">
-                                Image
+                            <div className="px-3 py-1.5 flex items-center justify-between">
+                                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">
+                                    Image
+                                </span>
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                    <span className="text-[10px] text-text-secondary">Transparent</span>
+                                    <div className="relative inline-block w-6 h-3 align-middle select-none transition duration-200 ease-in">
+                                        <input
+                                            type="checkbox"
+                                            className="peer sr-only"
+                                            checked={isTransparent}
+                                            onChange={(e) => setIsTransparent(e.target.checked)}
+                                        />
+                                        <div className="w-6 h-3 bg-bg-hover rounded-full peer-checked:bg-accent transition-colors"></div>
+                                        <div className="absolute left-[2px] top-[2px] w-2 h-2 bg-text-secondary rounded-full transition-transform peer-checked:translate-x-3 peer-checked:bg-white shadow-sm"></div>
+                                    </div>
+                                </label>
                             </div>
                             <button
                                 onClick={() => handleExportImage('png')}
@@ -159,6 +191,7 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
                             <button
                                 onClick={() => handleExportImage('jpeg')}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors text-left"
+                                title="JPEG format does not support transparency"
                             >
                                 <ImageIcon size={12} />
                                 Download JPEG
@@ -195,18 +228,48 @@ export function Toolbar({ theme, onToggleTheme, onOpenSidebar }: ToolbarProps) {
 
                 <div className="w-px h-5 bg-border mx-1" />
 
-                <button
-                    onClick={onToggleTheme}
-                    className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
-                    title={'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode'}
-                >
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
+                {/* Theme Selector Dropdown */}
+                <div className="relative" ref={themeMenuRef}>
+                    <button
+                        onClick={() => {
+                            setShowThemeMenu(!showThemeMenu);
+                            setShowExportMenu(false);
+                        }}
+                        className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors capitalize"
+                        title="Change Theme"
+                    >
+                        <Palette size={14} />
+                        <span className="hidden sm:inline">{theme}</span>
+                        <ChevronDown size={12} className="opacity-50" />
+                    </button>
+
+                    {showThemeMenu && (
+                        <div className="absolute right-0 top-full mt-1 w-36 bg-bg-elevated border border-border rounded-lg shadow-lg py-1 z-50">
+                            {themes.map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => {
+                                        setTheme(t);
+                                        setShowThemeMenu(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors text-left capitalize
+                                        ${theme === t ? 'text-accent bg-bg-hover/50 font-medium' : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'}
+                                    `}
+                                >
+                                    {t}
+                                    {theme === t && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <button
                     onClick={clear}
                     disabled={!hasData}
-                    className="p-1.5 text-text-secondary hover:text-error hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    className="p-1.5 text-text-secondary hover:text-error hover:bg-bg-hover rounded transition-colors disabled:opacity-30 disabled:pointer-events-none ml-1"
                     title="Clear canvas"
                 >
                     <Trash2 size={14} />

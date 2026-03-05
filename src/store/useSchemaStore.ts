@@ -101,9 +101,26 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         const direction = getLayoutDirection(result.data.type);
         const layouted = applyLayout(flow, { direction });
 
+        // Preserve custom node styles across visualize re-renders
+        const existingStyles = new Map(state.nodes.map(n => [n.id, (n.data as any).style]));
+
+        const preservedNodes = layouted.nodes.map(node => {
+            const style = existingStyles.get(node.id);
+            if (style) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        style
+                    }
+                };
+            }
+            return node;
+        });
+
         set({
             schemaModel: result.data,
-            nodes: layouted.nodes,
+            nodes: preservedNodes,
             edges: layouted.edges,
             error: null,
             pastNodes: [],
@@ -193,12 +210,20 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
             ? state.savedDiagrams.find((d) => d.id === state.activeDiagramId)
             : null;
 
+        const nodeStyles: Record<string, any> = {};
+        state.nodes.forEach(n => {
+            if ((n.data as any).style) {
+                nodeStyles[n.id] = (n.data as any).style;
+            }
+        });
+
         const diagram: SavedDiagram = {
             id: state.activeDiagramId || generateId(),
             name: name || existingDiagram?.name || 'Untitled Diagram',
             rawInput,
             inputMode: state.inputMode,
             schemaModel: state.schemaModel,
+            nodeStyles,
             createdAt: existingDiagram?.createdAt || now,
             updatedAt: now,
         };
@@ -218,6 +243,20 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         const direction = getLayoutDirection(diagram.schemaModel.type);
         const layouted = applyLayout(flow, { direction });
 
+        // Restore custom node styles if they exist in the saved diagram
+        const preservedNodes = layouted.nodes.map(node => {
+            if (diagram.nodeStyles && diagram.nodeStyles[node.id]) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        style: diagram.nodeStyles[node.id]
+                    }
+                };
+            }
+            return node;
+        });
+
         // Write to the correct input buffer based on the diagram's mode
         const inputUpdate = diagram.inputMode === 'sql'
             ? { sqlInput: diagram.rawInput }
@@ -227,7 +266,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
             ...inputUpdate,
             inputMode: diagram.inputMode,
             schemaModel: diagram.schemaModel,
-            nodes: layouted.nodes,
+            nodes: preservedNodes,
             edges: layouted.edges,
             error: null,
             pastNodes: [],

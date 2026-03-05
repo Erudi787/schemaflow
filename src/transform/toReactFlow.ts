@@ -4,11 +4,18 @@ import type { SchemaModel, SchemaTable, SchemaField } from '@/models/schema';
 // ===== SchemaModel -> React Flow Transformation =====
 // Converts the internal SchemaModel into React Flow nodes and edges.
 
+export interface NodeCustomStyle {
+    headerColor?: string;
+    borderColor?: string;
+    backgroundColor?: string;
+}
+
 export interface TableNodeData {
     label: string;
     fields: SchemaField[];
     tableType: 'sql' | 'json';
     isCollapsed?: boolean;
+    style?: NodeCustomStyle;
     [key: string]: unknown;
 }
 

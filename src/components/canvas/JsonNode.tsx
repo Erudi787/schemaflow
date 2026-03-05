@@ -1,8 +1,9 @@
 import { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import type { TableNodeData } from '@/transform/toReactFlow';
+import type { TableNodeData, NodeCustomStyle } from '@/transform/toReactFlow';
 import { ChevronDown, ChevronRight, Braces, Hash, Type, ToggleLeft, List, Calendar, Globe, Mail } from 'lucide-react';
+import { NodeCustomizer } from '@/components/canvas/NodeCustomizer';
 
 const TYPE_ICONS: Record<string, typeof Hash> = {
     integer: Hash,
@@ -16,12 +17,20 @@ const TYPE_ICONS: Record<string, typeof Hash> = {
     null: Type,
 };
 
-function JsonNodeComponent({ data }: NodeProps) {
+function JsonNodeComponent({ id, data }: NodeProps) {
     const { label, fields } = data as TableNodeData;
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    const customStyle = (data.style || {}) as NodeCustomStyle;
+
     return (
-        <div className="rounded-lg border border-border overflow-hidden shadow-md bg-bg-secondary min-w-[220px] relative">
+        <div
+            className="rounded-lg border overflow-hidden shadow-md min-w-[220px] relative"
+            style={{
+                backgroundColor: customStyle.backgroundColor || 'var(--color-bg-secondary)',
+                borderColor: customStyle.borderColor || 'var(--color-border)',
+            }}
+        >
             {/* 'self' target handle on node header for parent→child edges */}
             <Handle
                 type="target"
@@ -32,7 +41,10 @@ function JsonNodeComponent({ data }: NodeProps) {
             />
             {/* Header */}
             <div
-                className="flex items-center gap-2 px-3 py-2.5 bg-node-json-header cursor-pointer select-none"
+                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                style={{
+                    backgroundColor: customStyle.headerColor || 'var(--color-node-json-header)',
+                }}
                 onClick={() => setIsCollapsed(!isCollapsed)}
             >
                 <Braces size={14} className="text-white/80" />
@@ -45,6 +57,7 @@ function JsonNodeComponent({ data }: NodeProps) {
                 <span className="text-[10px] text-white/50 ml-1">
                     {fields.length} props
                 </span>
+                <NodeCustomizer nodeId={id} currentStyle={customStyle} />
             </div>
 
             {/* Fields */}

@@ -39,6 +39,7 @@ export interface SavedDiagram {
     rawInput: string;
     inputMode: InputMode;
     schemaModel: SchemaModel;
+    nodeStyles?: Record<string, any>;
     createdAt: number;
     updatedAt: number;
 }

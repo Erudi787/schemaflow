@@ -9,11 +9,12 @@ interface DownloadImageOptions {
     format: ImageFormat;
     backgroundColor?: string;
     diagramName?: string;
+    isTransparent?: boolean;
 }
 
 /**
  * Downloads the current React Flow canvas as an image.
- * Uses getViewportForBounds and temporarily resizes the DOM physically
+ * Uses getViewportForBounds and targets .react-flow__viewport
  * to force html-to-image to capture the exact node bounding box.
  */
 export async function downloadImage({
@@ -21,6 +22,7 @@ export async function downloadImage({
     format,
     backgroundColor = '#0B0D17', // Match our dark theme background
     diagramName = 'schemaflow-diagram',
+    isTransparent = false,
 }: DownloadImageOptions) {
     if (nodes.length === 0) {
         throw new Error('No nodes to export');
@@ -50,7 +52,7 @@ export async function downloadImage({
     }
 
     const options = {
-        backgroundColor,
+        backgroundColor: isTransparent ? undefined : backgroundColor,
         width: imageWidth,
         height: imageHeight,
         style: {
