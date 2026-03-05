@@ -4,6 +4,7 @@ import type { NodeProps } from '@xyflow/react';
 import type { TableNodeData, NodeCustomStyle } from '@/transform/toReactFlow';
 import { ChevronDown, ChevronRight, Braces, Hash, Type, ToggleLeft, List, Calendar, Globe, Mail } from 'lucide-react';
 import { NodeCustomizer } from '@/components/canvas/NodeCustomizer';
+import { getContrastYIQ } from '@/lib/utils';
 
 const TYPE_ICONS: Record<string, typeof Hash> = {
     integer: Hash,
@@ -22,6 +23,26 @@ function JsonNodeComponent({ id, data }: NodeProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const customStyle = (data.style || {}) as NodeCustomStyle;
+
+    const headerTextColor = customStyle.headerColor
+        ? getContrastYIQ(customStyle.headerColor) === 'black' ? 'text-bg-primary' : 'text-white'
+        : 'text-white';
+
+    const headerIconColor = customStyle.headerColor
+        ? getContrastYIQ(customStyle.headerColor) === 'black' ? 'text-bg-primary/80' : 'text-white/80'
+        : 'text-white/80';
+
+    const bodyTextColor = customStyle.backgroundColor
+        ? getContrastYIQ(customStyle.backgroundColor) === 'black' ? 'text-bg-primary' : 'text-text-primary'
+        : 'text-text-primary';
+
+    const bodyMutedColor = customStyle.backgroundColor
+        ? getContrastYIQ(customStyle.backgroundColor) === 'black' ? 'text-bg-primary/80' : 'text-text-muted'
+        : 'text-text-muted';
+
+    const bodyHoverClass = customStyle.backgroundColor
+        ? getContrastYIQ(customStyle.backgroundColor) === 'black' ? 'hover:bg-black/5' : 'hover:bg-white/5'
+        : 'hover:bg-bg-hover';
 
     return (
         <div
@@ -47,17 +68,17 @@ function JsonNodeComponent({ id, data }: NodeProps) {
                 }}
                 onClick={() => setIsCollapsed(!isCollapsed)}
             >
-                <Braces size={14} className="text-white/80" />
-                <span className="text-sm font-semibold text-white flex-1 truncate">
+                <Braces size={14} className={headerIconColor} />
+                <span className={`text-sm font-semibold flex-1 truncate ${headerTextColor}`}>
                     {label}
                 </span>
-                <span className="text-white/60">
+                <span className={headerIconColor}>
                     {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                 </span>
-                <span className="text-[10px] text-white/50 ml-1">
+                <span className={`text-[10px] ml-1 ${headerIconColor}`}>
                     {fields.length} props
                 </span>
-                <NodeCustomizer nodeId={id} currentStyle={customStyle} />
+                <NodeCustomizer nodeId={id} currentStyle={customStyle} iconClass={headerIconColor} />
             </div>
 
             {/* Fields */}
@@ -72,7 +93,7 @@ function JsonNodeComponent({ id, data }: NodeProps) {
                             return (
                                 <div
                                     key={field.name}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-hover transition-colors relative"
+                                    className={`flex items-center gap-2 px-3 py-1.5 text-xs transition-colors relative ${bodyHoverClass}`}
                                 >
                                     {/* Per-field handles for edge connections */}
                                     <Handle
@@ -101,12 +122,12 @@ function JsonNodeComponent({ id, data }: NodeProps) {
                                     />
 
                                     {/* Field name */}
-                                    <span className="text-text-primary font-medium truncate flex-1">
+                                    <span className={`font-medium truncate flex-1 ${bodyTextColor}`}>
                                         {field.name}
                                     </span>
 
                                     {/* Type label */}
-                                    <span className="text-text-muted font-mono text-[10px] shrink-0">
+                                    <span className={`font-mono text-[10px] shrink-0 ${bodyMutedColor}`}>
                                         {field.type}
                                     </span>
 

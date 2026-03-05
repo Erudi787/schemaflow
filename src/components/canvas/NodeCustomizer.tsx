@@ -7,6 +7,7 @@ import { useSchemaStore } from '@/store/useSchemaStore';
 interface NodeCustomizerProps {
     nodeId: string;
     currentStyle: NodeCustomStyle;
+    iconClass?: string;
 }
 
 const PRESET_COLORS = [
@@ -15,7 +16,7 @@ const PRESET_COLORS = [
     '#282a36', '#44475a', '#1e1e38', '#2a2a4a', '#ffffff',
 ];
 
-export function NodeCustomizer({ nodeId, currentStyle }: NodeCustomizerProps) {
+export function NodeCustomizer({ nodeId, currentStyle, iconClass }: NodeCustomizerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'header' | 'background' | 'border'>('header');
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -29,8 +30,9 @@ export function NodeCustomizer({ nodeId, currentStyle }: NodeCustomizerProps) {
             }
         };
         if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
+            // Use Event Capture Phase (true) so we intercept the click BEFORE React Flow's canvas swallows it
+            document.addEventListener('mousedown', handleClickOutside, true);
+            return () => document.removeEventListener('mousedown', handleClickOutside, true);
         }
     }, [isOpen]);
 
@@ -66,7 +68,7 @@ export function NodeCustomizer({ nodeId, currentStyle }: NodeCustomizerProps) {
         <div className="relative nodrag" ref={popoverRef} onClick={(e) => e.stopPropagation()}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="p-1 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                className={`p-1 rounded transition-colors hover:bg-white/10 ${iconClass || 'text-white/50 hover:text-white'}`}
                 title="Customize Node Style"
             >
                 <Palette size={13} />
