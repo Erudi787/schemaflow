@@ -65,14 +65,14 @@ function TableNodeComponent({ id, data }: NodeProps) {
                             <Handle
                                 type="source"
                                 position={Position.Right}
-                                id={field.name}
+                                id={field.name + '-source'}
                                 className="!w-1.5 !h-1.5 !bg-accent !border-accent-hover"
                                 style={{ top: '50%' }}
                             />
                             <Handle
                                 type="target"
                                 position={Position.Left}
-                                id={field.name}
+                                id={field.name + '-target'}
                                 className="!w-1.5 !h-1.5 !bg-accent !border-accent-hover"
                                 style={{ top: '50%' }}
                             />

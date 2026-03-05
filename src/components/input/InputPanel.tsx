@@ -129,11 +129,52 @@ ALTER TABLE employees ADD COLUMN role_id INT;
 ALTER TABLE employees ADD CONSTRAINT fk_emp_role FOREIGN KEY (role_id) REFERENCES roles(id);
 `;
 
+// -- Advanced Dialects & Cyclic Relationships --
+const SQL_SAMPLE_ADVANCED = `-- PostgreSQL Dump Simulation
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+CREATE SEQUENCE IF NOT EXISTS auth.user_id_seq;
+
+-- 1. Schema Prefix, UUID, JSONB
+CREATE TABLE "auth"."users" (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. MySQL Enum and Multi-word Types
+CREATE TABLE public.payments (
+    payment_id BIG INT AUTO_INCREMENT,
+    user_id UUID NOT NULL,
+    amount DOUBLE PRECISION,
+    status ENUM('pending', 'completed', 'failed') NOT NULL,
+    PRIMARY KEY (payment_id),
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "auth"."users" (id)
+);
+
+-- 3. Self-Referencing and Composite Keys
+CREATE TABLE public.employees (
+    tenant_id INT NOT NULL,
+    emp_id INT NOT NULL,
+    manager_id INT,
+    name VARCHAR(255),
+    PRIMARY KEY (tenant_id, emp_id),
+    FOREIGN KEY (tenant_id, manager_id) REFERENCES public.employees (tenant_id, emp_id)
+);
+
+-- 4. Unrelated dumped metadata
+CREATE UNIQUE INDEX idx_auth_users_email ON "auth"."users" (email);
+COMMENT ON TABLE "auth"."users" IS 'Authentication users table';
+`;
+
 const SQL_SAMPLES = [
     { label: 'Generic', value: SQL_SAMPLE_GENERIC },
     { label: 'MySQL', value: SQL_SAMPLE_MYSQL },
     { label: 'PostgreSQL', value: SQL_SAMPLE_PG },
     { label: 'DDL Dump', value: SQL_SAMPLE_ALTER },
+    { label: 'Advanced', value: SQL_SAMPLE_ADVANCED },
 ];
 
 const JSON_SAMPLE = JSON.stringify({

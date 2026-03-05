@@ -33,16 +33,6 @@ function CustomEdgeComponent({
     style = {},
     markerEnd,
 }: EdgeProps) {
-    const [edgePath, labelX, labelY] = getSmoothStepPath({
-        sourceX,
-        sourceY,
-        sourcePosition,
-        targetX,
-        targetY,
-        targetPosition,
-        borderRadius: 12,
-    });
-
     const d = data as EdgeData | undefined;
     const relType = d?.relationshipType;
     const fromField = d?.fromField;
@@ -50,11 +40,62 @@ function CustomEdgeComponent({
     const fromTable = d?.fromTable;
     const toTable = d?.toTable;
 
-    const relSymbol = relType ? REL_SYMBOLS[relType] || relType : '';
+    const isSelfReferencing = fromTable && toTable && fromTable === toTable;
+
+    let edgePath = '';
+    let labelX = 0;
+    let labelY = 0;
+
+    if (isSelfReferencing) {
+        // Draw a custom C-curve loop on the right side of the node.
+        // We force both start X and end X to use sourceX (Right side).
+        const startX = sourceX;
+        const startY = sourceY;
+        const endX = sourceX;
+        const endY = targetY; // Connect to the proper row height
+
+        const distanceY = Math.abs(endY - startY);
+
+        if (distanceY < 5) {
+            // Same exact field loop (e.g. tenant_id -> tenant_id)
+            const cpOffset = 50;
+            const yOffset = 25;
+            edgePath = `M ${startX} ${startY} C ${startX + cpOffset} ${startY - yOffset}, ${startX + cpOffset} ${startY + yOffset}, ${endX} ${startY}`;
+            labelX = startX + cpOffset;
+            labelY = startY;
+        } else {
+            // Different fields on the same table (e.g. manager_id -> emp_id)
+            const cpOffset = Math.max(40, distanceY * 0.5);
+            edgePath = `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${startX + cpOffset} ${endY}, ${endX} ${endY}`;
+            labelX = startX + cpOffset;
+            labelY = (startY + endY) / 2;
+        }
+    } else {
+        const [path, lx, ly] = getSmoothStepPath({
+            sourceX,
+            sourceY,
+            sourcePosition,
+            targetX,
+            targetY,
+            targetPosition,
+            borderRadius: 12,
+        });
+        edgePath = path;
+        labelX = lx;
+        labelY = ly;
+    }
+
+
+
+    const relSymbol = isSelfReferencing
+        ? ''
+        : (relType ? REL_SYMBOLS[relType] || relType : '');
 
     // Build the label: "posts.author_id → users.id"
-    const fieldLabel =
-        fromField && toField && fromTable && toTable
+    // Hide field label on self-referencing edges to prevent overlapping the node visually
+    const fieldLabel = isSelfReferencing
+        ? ''
+        : fromField && toField && fromTable && toTable
             ? `${fromTable}.${fromField} → ${toTable}.${toField}`
             : fromField && toField
                 ? `${fromField} → ${toField}`
